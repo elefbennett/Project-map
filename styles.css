@@ -1,0 +1,102 @@
+body {
+    margin: 0;
+    font-family: 'Lato', sans-serif;
+    background-color: #f9f8f6;
+    color: #333;
+  }
+  
+  .landing {
+    background-image: url('https://source.unsplash.com/1600x900/?vineyard,luxury');
+    background-size: cover;
+    background-position: center;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .hero {
+    text-align: center;
+    background: rgba(255,255,255,0.9);
+    padding: 40px;
+    border-radius: 12px;
+    max-width: 500px;
+  }
+  
+  .hero h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 3rem;
+  }
+  
+  .hero p {
+    font-size: 1.2rem;
+    margin-bottom: 20px;
+  }
+  
+  .btn {
+    background: black;
+    color: white;
+    padding: 12px 24px;
+    text-decoration: none;
+    border-radius: 6px;
+    font-weight: bold;
+  }
+  .header {
+    text-align: center;
+    padding: 40px 20px;
+    background: #fff;
+    border-bottom: 1px solid #ddd;
+  }
+  
+  .dashboard {
+    background-color: #f4f1ee;
+  }
+  
+  .events {
+    padding: 20px;
+  }
+  
+  .event-card {
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  }
+  
+  /* Map page custom styles */
+#map {
+  height: 80vh;
+  width: 100%;
+  margin: 0 auto;
+  border-radius: 12px;
+}
+.project-popup {
+  font-size: 1rem;
+}
+#filters {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+#filters label {
+  font-weight: bold;
+  font-size: 1rem;
+}
+#filters select, #filters button {
+  font-size: 1rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+#filters button {
+  background: #333;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+#filters button:hover {
+  background: #555;
+}
