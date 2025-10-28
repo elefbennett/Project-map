@@ -1,11 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>DRS Engineering Projects Map</title>
-  <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Leaflet CSS (versioned + SRI) -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+
+  <!-- Your site styles (optional) -->
+  <link rel="stylesheet" href="styles.css" />
+
   <style>
+    html, body { height: 100%; margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    main { max-width: 1200px; margin: 0 auto; padding: 16px; }
     #map { height: 80vh; width: 100%; margin: 0 auto; border-radius: 12px; }
     .project-popup { font-size: 1rem; }
   </style>
@@ -15,12 +28,36 @@
     <h1>DRS Engineering Projects Map</h1>
     <p>Explore all DRS Engineering projects across the US</p>
   </header>
+
   <main>
     <div id="map"></div>
+    <noscript style="color:#b00">This page requires JavaScript.</noscript>
   </main>
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script src="script.js"></script>
+
+  <!-- Leaflet JS (versioned + SRI) — must load BEFORE your script -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+
+  <!-- (Optional) tiny inline sanity check: shows LA map if Leaflet loaded correctly.
+  Remove or comment out after testing.
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const testMap = L.map('map').setView([34.05, -118.25], 10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(testMap);
+  });
+  </script>
+  -->
+
+  <!-- Your app script (cache-busted + deferred) -->
+  <script src="script.js?v=2025-10-28-04" defer></script>
 </body>
 </html>
+
+
 
 
