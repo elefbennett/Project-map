@@ -1,8 +1,7 @@
-<script>
 // ------------------ Login (unchanged) ------------------
 function loginUser() {
-  const user = document.getElementById("username").value;
-  const pass = document.getElementById("password").value;
+  const user = document.getElementById("username")?.value;
+  const pass = document.getElementById("password")?.value;
   if (user === "member" && pass === "syv2025") {
     window.location.href = "dashboard.html";
   } else {
@@ -12,34 +11,49 @@ function loginUser() {
 }
 
 // ------------------ Config ------------------
+// TIP: If corsproxy flakes, swap to a tiny Google Apps Script proxy and put its URL here.
 const SHEET_CSV_URL =
   'https://corsproxy.io/?https://docs.google.com/spreadsheets/d/1fUKAQlPWiotRlFQw95qbvUjvxwNFJGWWT3RX6OcCKRI/export?format=csv';
 
-// Supported Leaflet-color-markers colors (cycled across Work Types)
+// Supported marker colors (cycled across Work Types)
 const SUPPORTED_MARKER_COLORS = ['red', 'blue', 'green', 'orange', 'yellow', 'violet', 'grey', 'black'];
-const workTypeColorMap = {};
+const workTypeColorMap = Object.create(null);
 
 // ------------------ CSV → objects (simple parser) ------------------
-// NOTE: If your sheet contains commas within quoted cells, consider swapping to Papa Parse.
+// NOTE: If your sheet has commas inside quoted cells, consider switching to Papa Parse.
 async function fetchProjects() {
-  const res = await fetch(SHEET_CSV_URL);
-  const csv = await res.text();
-  const lines = csv.trim().split('\n');
-  const keys = lines[0].split(',').map(k => k.trim());
-  return lines.slice(1).map(line => {
-    const vals = line.split(','); // simple split (no quoted comma support)
-    const obj = {};
-    keys.forEach((k, i) => (obj[k] = vals[i]?.trim()));
-    return obj;
-  });
+  try {
+    const res = await fetch(SHEET_CSV_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const csv = await res.text();
+    const lines = csv.trim().split('\n');
+    if (!lines.length) return [];
+
+    const keys = lines[0].split(',').map(k => k.trim());
+    return lines.slice(1).map(line => {
+      const vals = line.split(','); // simple split (no quoted-comma support)
+      const obj = {};
+      keys.forEach((k, i) => (obj[k] = vals[i]?.trim()));
+      return obj;
+    });
+  } catch (err) {
+    console.error('CSV fetch failed:', err);
+    const main = document.querySelector('main');
+    if (main) {
+      const note = document.createElement('div');
+      note.style = 'margin:12px 0; padding:8px 12px; background:#fff3cd; border:1px solid #ffeeba; border-radius:6px;';
+      note.textContent = 'Could not load project data right now. Showing base map only.';
+      main.prepend(note);
+    }
+    return [];
+  }
 }
 
-// ------------------ UI: insert dynamic checkbox filters ------------------
+// ------------------ UI: dynamic checkbox filters ------------------
 function buildFiltersUI({ workTypes, dealStages }) {
   const main = document.querySelector('main');
   if (!main) return;
 
-  // Container
   const filters = document.createElement('section');
   filters.id = 'filters';
   filters.style = `
@@ -47,23 +61,27 @@ function buildFiltersUI({ workTypes, dealStages }) {
     display: grid; gap: 12px; grid-template-columns: 1fr; font: 14px system-ui, sans-serif;
   `;
 
-  // Helper to create a checkbox group
   const makeCheckboxGroup = (title, idPrefix, items) => {
     const wrap = document.createElement('div');
-    wrap.innerHTML = `<div style="font-weight:600; margin-bottom:6px;">${title}</div>`;
+    const heading = document.createElement('div');
+    heading.textContent = title;
+    heading.style = 'font-weight:600; margin-bottom:6px;';
+    wrap.appendChild(heading);
+
     const box = document.createElement('div');
     box.id = `${idPrefix}Group`;
-    box.style = `display:flex; flex-wrap:wrap; gap:10px;`;
-    // "All" (empty selection means no filter, but this helps UX)
-    const all = document.createElement('button');
-    all.type = 'button';
-    all.textContent = 'Clear selection';
-    all.style = 'padding:4px 8px; border:1px solid #ddd; border-radius:6px; background:#f9f9f9; cursor:pointer;';
-    all.addEventListener('click', () => {
+    box.style = 'display:flex; flex-wrap:wrap; gap:10px;';
+
+    const clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.textContent = 'Clear selection';
+    clearBtn.style = 'padding:4px 8px; border:1px solid #ddd; border-radius:6px; background:#f9f9f9; cursor:pointer; margin-bottom:6px;';
+    clearBtn.addEventListener('click', () => {
       box.querySelectorAll('input[type="checkbox"]').forEach(cb => (cb.checked = false));
       box.dispatchEvent(new Event('change', { bubbles: true }));
     });
-    wrap.appendChild(all);
+
+    wrap.appendChild(clearBtn);
     wrap.appendChild(box);
 
     items.forEach(val => {
@@ -80,14 +98,13 @@ function buildFiltersUI({ workTypes, dealStages }) {
       label.appendChild(document.createTextNode(val));
       box.appendChild(label);
     });
+
     return wrap;
   };
 
-  // Groups
   const workTypeGroup = makeCheckboxGroup('Work Type', 'workType', workTypes);
   const dealStageGroup = makeCheckboxGroup('Deal Stage', 'dealStage', dealStages);
 
-  // Controls row
   const controls = document.createElement('div');
   controls.style = 'display:flex; gap:10px; align-items:center; flex-wrap:wrap;';
   controls.innerHTML = `
@@ -96,33 +113,26 @@ function buildFiltersUI({ workTypes, dealStages }) {
     <span id="resultCount" style="margin-left:auto; color:#333; font-size:12px;"></span>
   `;
 
-  // Legend
   const legend = document.createElement('div');
   legend.id = 'legend';
   legend.style = 'display:flex; gap:10px; flex-wrap:wrap; align-items:center;';
-
-  legend.appendChild(Object.assign(document.createElement('div'), { textContent: 'Legend:' }));
+  const legendTitle = document.createElement('div');
+  legendTitle.textContent = 'Legend:';
+  legend.appendChild(legendTitle);
 
   filters.appendChild(workTypeGroup);
   filters.appendChild(dealStageGroup);
   filters.appendChild(controls);
   filters.appendChild(legend);
 
-  // Insert above map
   const mapEl = document.getElementById('map');
-  if (mapEl) {
-    main.insertBefore(filters, mapEl);
-  } else {
-    main.insertBefore(filters, main.firstChild);
-  }
+  if (mapEl) main.insertBefore(filters, mapEl);
+  else main.insertBefore(filters, main.firstChild);
 }
 
-// Slug helper for input IDs
 function slugify(s) {
   return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
-
-// Read checked values from a group
 function getCheckedValues(groupId) {
   const group = document.getElementById(groupId);
   if (!group) return [];
@@ -134,29 +144,33 @@ async function initProjectsMap() {
   const mapHost = document.getElementById('map');
   if (!mapHost) return;
 
+  // Base map
   const map = L.map('map').setView([39.5, -98.35], 4);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
+  // Data
   const projects = await fetchProjects();
+  if (!Array.isArray(projects)) {
+    console.warn('Projects is not an array; aborting plot.');
+    return;
+  }
 
-  // Unique values
-  const workTypes = Array.from(new Set(projects.map(p => p['Work Type']).filter(Boolean))).sort();
-  const dealStages = Array.from(new Set(projects.map(p => p['Deal Stage']).filter(Boolean))).sort();
+  // Unique filters
+  const workTypes = Array.from(new Set(projects.map(p => p?.['Work Type']).filter(Boolean))).sort();
+  const dealStages = Array.from(new Set(projects.map(p => p?.['Deal Stage']).filter(Boolean))).sort();
 
-  // Color map for Work Types
+  // Color map
   workTypes.forEach((wt, i) => {
     workTypeColorMap[wt] = SUPPORTED_MARKER_COLORS[i % SUPPORTED_MARKER_COLORS.length];
   });
 
-  // Build filters UI
+  // UI
   buildFiltersUI({ workTypes, dealStages });
-
-  // Legend render
   renderLegend();
 
-  // Wire events (event delegation on groups)
+  // Refs
   const workTypeGroup = document.getElementById('workTypeGroup');
   const dealStageGroup = document.getElementById('dealStageGroup');
   const resetBtn = document.getElementById('resetFilters');
@@ -171,18 +185,17 @@ async function initProjectsMap() {
   function renderLegend() {
     const legend = document.getElementById('legend');
     if (!legend) return;
-    // Clear existing (keep "Legend:" title)
-    const keep = legend.firstChild;
+    // keep first child ("Legend:")
+    const title = legend.firstChild;
     legend.innerHTML = '';
-    legend.appendChild(keep);
+    legend.appendChild(title);
     Object.entries(workTypeColorMap).forEach(([wt, color]) => {
       const item = document.createElement('div');
       item.style = 'display:flex; align-items:center; gap:6px;';
       const swatch = document.createElement('span');
       swatch.style = `
         display:inline-block; width:12px; height:12px; border-radius:50%;
-        background:${color};
-        border:1px solid #999;
+        background:${color}; border:1px solid #999;
       `;
       item.appendChild(swatch);
       item.appendChild(document.createTextNode(wt));
@@ -239,12 +252,8 @@ async function initProjectsMap() {
       const color = workTypeColorMap[p['Work Type']] || 'blue';
       const marker = L.marker([lat, lon], { icon: makeIcon(color) }).addTo(map);
 
-      const address = [
-        p['Street Address'],
-        p['City'],
-        p['State'],
-        p['Zip Code']
-      ].filter(Boolean).join(' ');
+      const address = [p['Street Address'], p['City'], p['State'], p['Zip Code']]
+        .filter(Boolean).join(' ');
 
       marker.bindPopup(
         `<div class='project-popup'>
@@ -260,15 +269,11 @@ async function initProjectsMap() {
       count++;
     }
 
-    // Count label
     if (resultCount) {
       resultCount.textContent = count ? `${count} project${count === 1 ? '' : 's'} shown` : 'No matching projects';
     }
-
     if (count > 0) {
       map.fitBounds(bounds.pad(0.1));
-    } else {
-      // keep current view; no alert (non-blocking UX)
     }
   }
 
@@ -286,12 +291,7 @@ async function initProjectsMap() {
   });
 }
 
-// ------------------ Boot on projects_map.html ------------------
+// ------------------ Boot (unconditional) ------------------
 document.addEventListener('DOMContentLoaded', () => {
-  // Add filters holder even before map if needed (built later with data)
-  if (window.location.pathname.endsWith('projects_map.html')) {
-    initProjectsMap();
-  }
+  initProjectsMap();
 });
-</script>
-
