@@ -7,6 +7,7 @@
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" />
 
   <style>
@@ -37,22 +38,9 @@
 
     #count { text-align:center; font-weight:600; font-size:1.2rem; color:var(--primary); }
 
-    /* === YOUR FAVORITE LUXURY BURGUNDY CLUSTERS === */
-    .luxury-cluster {
-      background: #722f37;
-      color: white;
-      font-weight: bold;
-      text-align: center;
-      border-radius: 50%;
-      border: 5px solid white;
-      box-shadow: 0 8px 25px rgba(114,47,55,0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .luxury-cluster-small { width: 52px; height: 52px; font-size: 18px; line-height: 42px; }
-    .luxury-cluster-medium { width: 68px; height: 68px; font-size: 24px; line-height: 58px; }
-    .luxury-cluster-large { width: 84px; height: 84px; font-size: 30px; line-height: 74px; }
+    body.dark { background:#121212 !important; color:#eee !important; }
+    body.dark #filters { background:#1e1e1e !important; border-color:#444 !important; }
+    body.dark .ts-control, body.dark #searchBox { background:#333 !important; color:#eee !important; border-color:#555 !important; }
   </style>
 </head>
 <body>
@@ -91,20 +79,8 @@
       map = L.map('map').setView([34.5, -119.5], 8);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
 
-      cluster = L.markerClusterGroup({
-        iconCreateFunction: function(c) {
-          const count = c.getChildCount();
-          let size = 'medium';
-          if (count < 10) size = 'small';
-          else if (count >= 30) size = 'large';
-
-          return L.divIcon({
-            html: `<div>${count}</div>`,
-            className: `luxury-cluster luxury-cluster-${size}`,
-            iconSize: L.point(size === 'small' ? 52 : size === 'medium' ? 68 : 84, size === 'small' ? 52 : size === 'medium' ? 68 : 84)
-          });
-        }
-      });
+      // Default clean clusters — exactly the look you loved
+      cluster = L.markerClusterGroup();
       map.addLayer(cluster);
 
       document.getElementById('map').insertAdjacentHTML('beforeend', `
