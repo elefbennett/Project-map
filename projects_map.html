@@ -5,12 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SYV Projects Map</title>
 
-  <!-- Leaflet + Clustering -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
-
-  <!-- TomSelect -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" />
 
   <style>
@@ -42,7 +38,7 @@
     #count { text-align:center; font-weight:600; font-size:1.2rem; color:var(--primary); }
 
     body.dark { background:#121212 !important; color:#eee !important; }
-    body.dark #filters, body.dark .project-popup { background:#1e1e1e !important; border-color:#444 !important; }
+    body.dark #filters { background:#1e1e1e !important; border-color:#444 !important; }
     body.dark .ts-control, body.dark #searchBox { background:#333 !important; color:#eee !important; border-color:#555 !important; }
   </style>
 </head>
@@ -61,7 +57,7 @@
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTB_eYjbWk8gM-dAyY2gNFiJ4k60S3DRpF0AyMIe-8J2FyqiquIyraVjv9yHZ4tuMywAjkqRHV9V5BD/pub?output=csv";
     const COLORS = ['red','blue','green','orange','yellow','violet','grey','black'];
     const colorMap = {};
-    let map, cluster, projects = [], tom = null;
+    let map, cluster, projects = [], tomWorkType = null, tomDealStage = null;
 
     async function loadData() {
       const r = await fetch(CSV_URL);
@@ -77,8 +73,7 @@
     }
 
     async function init() {
-      // Wait a tick so the #map div is fully in the DOM
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 100)); // ensure DOM ready
 
       map = L.map('map').setView([34.5, -119.5], 8);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
@@ -94,33 +89,48 @@
 
       await loadData();
 
-      const types = [...new Set(projects.map(p => p['Work Type']).filter(Boolean))].sort();
-      types.forEach((t,i) => colorMap[t] = COLORS[i % COLORS.length]);
+      const workTypes = [...new Set(projects.map(p => p['Work Type']).filter(Boolean))].sort();
+      const dealStages = [...new Set(projects.map(p => p['Deal Stage']).filter(Boolean))].sort();
+
+      workTypes.forEach((t,i) => colorMap[t] = COLORS[i % COLORS.length]);
 
       document.querySelector('main').insertAdjacentHTML('beforeend', `
         <section id="filters">
           <div><h3>🔍 Search Projects</h3><input type="text" id="searchBox" placeholder="Job name, city, address..."></div>
           <div><h3>Work Type</h3><select id="workTypeSelect" multiple placeholder="All Work Types"></select></div>
+          <div><h3>Deal Stage</h3><select id="dealStageSelect" multiple placeholder="All Deal Stages"></select></div>
           <div style="text-align:center"><button id="reset" class="btn" style="background:#666;color:white">Reset All</button><div id="count"></div></div>
-          <div id="legend" class="legend"><strong>Legend:</strong></div>
+          <div id="legend" class="legend"><strong>Legend (Work Type):</strong></div>
         </section>`);
 
-      tom = new TomSelect('#workTypeSelect', {
+      // Work Type dropdown
+      tomWorkType = new TomSelect('#workTypeSelect', {
         plugins: ['remove_button','dropdown_input'],
         create: false,
-        options: types.map(t => ({value: t, text: t})),
+        options: workTypes.map(t => ({value: t, text: t})),
         render: {
           option: (d,e) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0"><span style="width:14px;height:14px;border-radius:50%;background:${colorMap[d.value]||'grey'};border:1px solid #999"></span>${e(d.text)}</div>`,
           item: (d,e) => `<div style="background:#722f37;color:white;padding:6px 12px;border-radius:20px;display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:50%;background:${colorMap[d.value]||'grey'}"></span>${e(d.text)}</div>`
         }
       });
 
+      // Deal Stage dropdown (same style, no color dots)
+      tomDealStage = new TomSelect('#dealStageSelect', {
+        plugins: ['remove_button','dropdown_input'],
+        create: false,
+        options: dealStages.map(s => ({value: s, text: s})),
+        render: {
+          item: (d,e) => `<div style="background:#555;color:white;padding:6px 12px;border-radius:20px;">${e(d.text)}</div>`
+        }
+      });
+
+      // Legend (only Work Type has colors)
       const legend = document.getElementById('legend');
       Object.entries(colorMap).forEach(([t,c]) => {
         const el = document.createElement('div');
         el.className = 'legend-item';
         el.innerHTML = `<span class="swatch" style="background:${c}"></span>${t}`;
-        el.onclick = () => tom.addItem(t);
+        el.onclick = () => tomWorkType.addItem(t);
         legend.appendChild(el);
       });
 
@@ -130,8 +140,15 @@
 
       const live = () => setTimeout(plot, 300);
       document.getElementById('searchBox').addEventListener('input', live);
-      tom.on('change', plot);
-      document.getElementById('reset').onclick = () => { document.getElementById('searchBox').value = ''; tom.clear(); plot(); };
+      tomWorkType.on('change', plot);
+      tomDealStage.on('change', plot);
+
+      document.getElementById('reset').onclick = () => {
+        document.getElementById('searchBox').value = '';
+        tomWorkType.clear();
+        tomDealStage.clear();
+        plot();
+      };
       document.getElementById('near').onclick = () => map.locate({setView:true, maxZoom:12});
       document.getElementById('toggle').onclick = () => document.getElementById('filters').classList.toggle('collapsed');
       document.getElementById('dark').onclick = () => document.body.classList.toggle('dark');
@@ -142,24 +159,26 @@
       const bounds = L.latLngBounds();
       let count = 0;
       const q = (document.getElementById('searchBox').value || '').toLowerCase();
-      const sel = tom ? tom.items : [];
+      const selWork = tomWorkType ? tomWorkType.items : [];
+      const selStage = tomDealStage ? tomDealStage.items : [];
 
       for (const p of projects) {
-        if (sel.length && !sel.includes(p['Work Type'])) continue;
+        if (selWork.length && !selWork.includes(p['Work Type'])) continue;
+        if (selStage.length && !selStage.includes(p['Deal Stage'])) continue;
         if (q && !Object.values(p).join(' ').toLowerCase().includes(q)) continue;
         const lat = parseFloat(p.Latitude || p.latitude);
         const lon = parseFloat(p.Longitude || p.longitude);
         if (!lat || !lon) continue;
 
         const icon = L.icon({
-          iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${colorMap[p['Work Type']]||'grey'}.png`,
+          iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${colorMap[p['Work Type']] || 'grey'}.png`,
           shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
           iconSize: [25,41], iconAnchor: [12,41], popupAnchor: [1,-34], shadowSize: [41,41]
         });
 
         const m = L.marker([lat,lon], {icon});
         const addr = [p['Street Address'], p.City, p.State, p['Zip Code']].filter(Boolean).join(', ');
-        m.bindPopup(`<div class="project-popup"><strong>${p['Job Name']||'Unnamed'}</strong><br>${addr}<br><br><b>Work Type:</b> ${p['Work Type']||'—'}</div>`);
+        m.bindPopup(`<div class="project-popup"><strong>${p['Job Name']||'Unnamed'}</strong><br>${addr}<br><br><b>Work Type:</b> ${p['Work Type']||'—'}<br><b>Deal Stage:</b> ${p['Deal Stage']||'—'}</div>`);
         cluster.addLayer(m);
         bounds.extend([lat,lon]);
         count++;
@@ -168,7 +187,6 @@
       if (count) map.fitBounds(bounds.pad(0.2));
     }
 
-    // Tiny delay to ensure DOM is ready
     window.addEventListener('load', () => setTimeout(init, 100));
   </script>
 </body>
