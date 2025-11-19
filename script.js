@@ -20,7 +20,7 @@ const workTypeColorMap = Object.create(null);
 
 let map, markerCluster, allProjects = [];
 
-// ------------------ CSV → objects (improved parser) ------------------
+// ------------------ CSV → objects ------------------
 async function fetchProjects() {
   try {
     const res = await fetch(SHEET_CSV_URL, { cache: 'no-store' });
@@ -49,8 +49,8 @@ async function fetchProjects() {
   }
 }
 
-// ------------------ UI: dynamic checkbox filters (now beautiful + live search) ------------------
-function buildFiltersUI({ workTypes, dealStages }) {
+// ------------------ UI: Multi-select dropdown filters ------------------
+function buildFiltersUI({ workTypes }) {
   const main = document.querySelector('main');
   if (!main) return;
 
@@ -63,12 +63,10 @@ function buildFiltersUI({ workTypes, dealStages }) {
 
       <div class="filter-group">
         <h3>Work Type</h3>
-        <div id="workTypeGroup" class="checkbox-group"></div>
-      </div>
-
-      <div class="filter-group">
-        <h3>Deal Stage</h3>
-        <div id="dealStageGroup" class="checkbox-group"></div>
+        <select id="workTypeSelect" multiple placeholder="All Work Types">
+          ${workTypes.map(wt => `<option value="${wt}">${wt}</option>`).join('')}
+        </select>
+        <small style="color:#666; display:block; margin-top:4px;">Hold Ctrl/Cmd or Shift to select multiple</small>
       </div>
 
       <div class="filter-actions">
@@ -79,47 +77,32 @@ function buildFiltersUI({ workTypes, dealStages }) {
       <div id="legend" class="legend"><strong>Legend:</strong></div>
     </section>`;
 
-  const div = document.createElement('div');
-  div.innerHTML = filtersHTML;
-  const filters = div.firstElementChild;
+  main.insertAdjacentHTML('beforeend', filtersHTML);
 
-  // Insert before map
-  const mapEl = document.getElementById('map');
-  main.insertBefore(filters, mapEl);
+  // Make the <select> look beautiful
+  const select = document.getElementById('workTypeSelect');
+  select.size = Math.min(workTypes.length, 8); // show up to 8 items without scrolling too much
 
-  // Populate checkboxes
-  const populate = (id, items) => {
-    const el = document.getElementById(id);
-    el.innerHTML = items.map(val => `
-      <label class="checkbox-label">
-        <input type="checkbox" value="${val}">
-        <span class="checkmark"></span>${val}
-      </label>`).join('');
-  };
-  populate('workTypeGroup', workTypes);
-  populate('dealStageGroup', dealStages);
-
-  // Legend (clickable!)
+  // Legend (clickable)
   const legend = document.getElementById('legend');
-  Object.entries(workTypeColorMap).forEach(([wt, color]) => {
+  Object.entries(workTypeColorMap).sort((a,b) => workTypes.indexOf(a[0]) - workTypes.indexOf(b[0])).forEach(([wt, color]) => {
     const item = document.createElement('div');
     item.className = 'legend-item';
     item.innerHTML = `<span class="swatch" style="background:${color}"></span>${wt}`;
     item.style.cursor = 'pointer';
-    item.title = 'Click to toggle';
+    item.title = 'Click to toggle in filter';
     item.onclick = () => {
-      const cb = document.querySelector(`#workTypeGroup input[value="${wt}"]`);
-      if (cb) { cb.checked = !cb.checked; plotFiltered(); }
+      const option = select.querySelector(`option[value="${wt}"]`);
+      if (option) {
+        option.selected = !option.selected;
+        plotFiltered();
+      }
     };
     legend.appendChild(item);
   });
 }
 
-function slugify(s) {
-  return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-}
-
-// ------------------ Map + plotting (now with clusters, live filter, loading, etc.) ------------------
+// ------------------ Map + plotting ------------------
 async function initProjectsMap() {
   const mapHost = document.getElementById('map');
   if (!mapHost) return;
@@ -128,15 +111,15 @@ async function initProjectsMap() {
   const overlay = document.createElement('div');
   overlay.id = 'mapOverlay';
   overlay.innerHTML = `<div class="spinner"></div><div>Loading projects...</div>`;
+  mapHost.style.position = 'relative';
   mapHost.appendChild(overlay);
 
-  // Base map
+  // Map setup
   map = L.map('map').setView([39.5, -98.35], 4);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
-  // Marker clustering
   markerCluster = L.markerClusterGroup({
     spiderfyOnMaxZoom: true,
     showCoverageOnHover: false,
@@ -144,14 +127,13 @@ async function initProjectsMap() {
   });
   map.addLayer(markerCluster);
 
-  // Controls (Near Me, Filters toggle, Dark Mode)
-  const controlsHTML = `
+  // Top controls
+  mapHost.insertAdjacentHTML('beforeend', `
     <div id="topControls">
       <button id="toggleFilters" class="btn">⚙️ Filters</button>
       <button id="locateMe" class="btn">📍 Near Me</button>
       <button id="darkMode" class="btn">🌙 Dark</button>
-    </div>`;
-  mapHost.insertAdjacentHTML('beforeend', controlsHTML);
+    </div>`);
 
   // Load data
   allProjects = await fetchProjects();
@@ -161,45 +143,40 @@ async function initProjectsMap() {
   }
 
   const workTypes = [...new Set(allProjects.map(p => p['Work Type']).filter(Boolean))].sort();
-  const dealStages = [...new Set(allProjects.map(p => p['Deal Stage']).filter(Boolean))].sort();
-
   workTypes.forEach((wt, i) => workTypeColorMap[wt] = SUPPORTED_MARKER_COLORS[i % SUPPORTED_MARKER_COLORS.length]);
 
-  buildFiltersUI({ workTypes, dealStages });
-
-  // Remove loading overlay
+  buildFiltersUI({ workTypes });
   overlay.remove();
 
-  // Initial plot
   document.getElementById('resultCount').textContent = `All ${allProjects.length} projects loaded`;
   plotFiltered();
 
-  // Live filtering (debounced)
+  // Live filtering
   let debounce;
   const livePlot = () => {
     clearTimeout(debounce);
-    debounce = setTimeout(plotFiltered, 300);
+    debounce = setTimeout(plotFiltered, 250);
   };
-  document.getElementById('filters').addEventListener('change', livePlot);
-  document.getElementById('searchBox')?.addEventListener('input', livePlot);
+  document.getElementById('searchBox').addEventListener('input', livePlot);
+  document.getElementById('workTypeSelect').addEventListener('change', plotFiltered);
 
   // Buttons
-  document.getElementById('resetFilters')?.addEventListener('click', () => {
+  document.getElementById('resetFilters').addEventListener('click', () => {
     document.getElementById('searchBox').value = '';
-    document.querySelectorAll('#filters input[type="checkbox"]').forEach(c => c.checked = false);
+    Array.from(document.getElementById('workTypeSelect').options).forEach(opt => opt.selected = false);
     plotFiltered();
   });
 
-  document.getElementById('locateMe')?.addEventListener('click', () => {
+  document.getElementById('locateMe').addEventListener('click', () => {
     map.locate({ setView: true, maxZoom: 12 });
     map.once('locationfound', e => L.marker(e.latlng).addTo(map).bindPopup('You are here').openPopup());
   });
 
-  document.getElementById('toggleFilters')?.addEventListener('click', () => {
+  document.getElementById('toggleFilters').addEventListener('click', () => {
     document.getElementById('filters').classList.toggle('collapsed');
   });
 
-  document.getElementById('darkMode')?.addEventListener('click', () => {
+  document.getElementById('darkMode').addEventListener('click', () => {
     document.body.classList.toggle('dark');
   });
 }
@@ -222,11 +199,9 @@ function makeIcon(color) {
 
 function matchesFilters(p) {
   const query = document.getElementById('searchBox')?.value.trim().toLowerCase() || '';
-  const wtChecks = Array.from(document.querySelectorAll('#workTypeGroup input:checked')).map(c => c.value);
-  const dsChecks = Array.from(document.querySelectorAll('#dealStageGroup input:checked')).map(c => c.value);
+  const selectedTypes = Array.from(document.getElementById('workTypeSelect')?.selectedOptions || []).map(o => o.value);
 
-  if (wtChecks.length && !wtChecks.includes(p['Work Type'])) return false;
-  if (dsChecks.length && !dsChecks.includes(p['Deal Stage'])) return false;
+  if (selectedTypes.length && !selectedTypes.includes(p['Work Type'])) return false;
   if (query && !Object.values(p).join(' ').toLowerCase().includes(query)) return false;
   return true;
 }
@@ -249,8 +224,7 @@ function plotFiltered() {
       <div class="project-popup">
         <strong>${p['Job Name'] || 'Unnamed Project'}</strong><br>
         ${address}<br><br>
-        <b>Work Type:</b> ${p['Work Type'] || '—'}<br>
-        <b>Deal Stage:</b> ${p['Deal Stage'] || '—'}
+        <b>Work Type:</b> ${p['Work Type'] || '—'}
       </div>`);
 
     markerCluster.addLayer(marker);
@@ -259,31 +233,14 @@ function plotFiltered() {
   }
 
   const rc = document.getElementById('resultCount');
-  if (rc) rc.textContent = count ? `${count} project${count > 1 ? 's' : ''} shown` : 'No projects match';
+  rc.textContent = count ? `${count} project${count > 1 ? 's' : ''} shown` : 'No projects match';
+  rc.style.color = count ? 'var(--color-primary)' : '#c53030';
 
   if (count > 0) map.fitBounds(bounds.pad(0.2));
 }
 
-// ------------------ Boot (unchanged) ------------------
+// ------------------ Boot ------------------
 document.addEventListener('DOMContentLoaded', () => {
   initProjectsMap();
 });
 </script>
-
-<!-- Add these styles to your existing CSS file (or keep here) -->
-<style>
-  #mapOverlay { position:absolute; inset:0; background:rgba(255,255,255,0.95); z-index:1000; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; font-size:1.3rem; }
-  .spinner { width:48px; height:48px; border:5px solid #f3f3f3; border-top:5px solid #722f37; border-radius:50%; animation:spin 1s linear infinite; }
-  @keyframes spin { to { transform:rotate(360deg); } }
-
-  #topControls { position:absolute; top:12px; left:12px; z-index:1000; display:flex; gap:10px; flex-wrap:wrap; }
-  #topControls .btn { background:rgba(255,255,255,0.9); padding:10px 16px; border:none; border-radius:50px; box-shadow:0 4px 12px rgba(0,0,0,0.15); font-weight:600; }
-
-  #filters.collapsed { transform:translateY(-110%); transition:transform .4s; }
-  @media (max-width:768px) { #filters { transition:transform .4s; } }
-
-  body.dark { background:#121212 !important; color:#eee !important; }
-  body.dark #filters, body.dark .project-popup { background:#1e1e1e !important; border-color:#444 !important; }
-  body.dark .checkbox-label { background:#333 !important; }
-  body.dark .checkbox-label:hover { background:#444 !important; }
-</style>
