@@ -178,10 +178,10 @@
           iconSize: [25,41], iconAnchor: [12,41], popupAnchor: [1,-34], shadowSize: [41,41]
         });
 
-        // Project Number = Column A (Year) + "-" + Column B (Number) padded to 3 digits
+        // FIXED: Use exact header names from your sheet
         const year = (p['Year'] || '').trim();
-        const num = (p['Project #'] || '').trim();
-        const projectNumber = year && num ? `${year}-${num.padStart(3, '0')}` : '—';
+        const projectNum = (p['Project #'] || '').trim();
+        const projectNumber = year && projectNum ? `${year}-${projectNum.padStart(3, '0')}` : '—';
 
         const addr = [p['Street Address'], p.City, p.State, p['Zip Code']].filter(Boolean).join(', ');
 
