@@ -37,22 +37,22 @@
 
     #count { text-align:center; font-weight:600; font-size:1.2rem; color:var(--primary); }
 
-    /* === ORIGINAL LUXURY BURGUNDY CLUSTERS (your favorite from the beginning) === */
+    /* === YOUR FAVORITE LUXURY BURGUNDY CLUSTERS === */
     .luxury-cluster {
-      background: var(--primary);
+      background: #722f37;
       color: white;
       font-weight: bold;
       text-align: center;
       border-radius: 50%;
       border: 5px solid white;
-      box-shadow: 0 8px 25px rgba(114,47,55,0.4);
+      box-shadow: 0 8px 25px rgba(114,47,55,0.5);
       display: flex;
       align-items: center;
       justify-content: center;
     }
-    .luxury-cluster-small { width: 50px; height: 50px; font-size: 18px; line-height: 40px; }
-    .luxury-cluster-medium { width: 66px; height: 66px; font-size: 24px; line-height: 56px; }
-    .luxury-cluster-large { width: 82px; height: 82px; font-size: 30px; line-height: 72px; }
+    .luxury-cluster-small { width: 52px; height: 52px; font-size: 18px; line-height: 42px; }
+    .luxury-cluster-medium { width: 68px; height: 68px; font-size: 24px; line-height: 58px; }
+    .luxury-cluster-large { width: 84px; height: 84px; font-size: 30px; line-height: 74px; }
   </style>
 </head>
 <body>
@@ -101,7 +101,7 @@
           return L.divIcon({
             html: `<div>${count}</div>`,
             className: `luxury-cluster luxury-cluster-${size}`,
-            iconSize: L.point(size === 'small' ? 50 : size === 'medium' ? 66 : 82, size === 'small' ? 50 : size === 'medium' ? 66 : 82)
+            iconSize: L.point(size === 'small' ? 52 : size === 'medium' ? 68 : 84, size === 'small' ? 52 : size === 'medium' ? 68 : 84)
           });
         }
       });
