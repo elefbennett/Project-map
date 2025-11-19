@@ -177,10 +177,10 @@
           iconSize: [25,41], iconAnchor: [12,41], popupAnchor: [1,-34], shadowSize: [41,41]
         });
 
-        // FIXED: Use the exact header names from your sheet
+        // FIXED: Use your exact column headers "Year" and "Job Number"
         const year = (p['Year'] || '').trim();
-        const projectNum = (p['Project #'] || '').trim();
-        const projectNumber = year && projectNum ? `${year}-${projectNum.padStart(3, '0')}` : '—';
+        const jobNum = (p['Job Number'] || '').trim();
+        const projectNumber = year && jobNum ? `${year}-${jobNum.padStart(3, '0')}` : '—';
 
         const addr = [p['Street Address'], p.City, p.State, p['Zip Code']].filter(Boolean).join(', ');
 
