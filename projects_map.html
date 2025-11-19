@@ -37,22 +37,30 @@
 
     #count { text-align:center; font-weight:600; font-size:1.2rem; color:var(--primary); }
 
-    /* === LUXURY CLUSTER ICONS - BIG, READABLE, BEAUTIFUL === */
-    .luxury-cluster {
-      background: var(--primary);
+    /* === GORGEOUS PIE CHART CLUSTERS === */
+    .pie-cluster {
+      background: transparent;
+      border: 6px solid white;
+      border-radius: 50%;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    .pie-cluster svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+    .pie-cluster .center-number {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
       color: white;
       font-weight: bold;
-      text-align: center;
-      border-radius: 50%;
-      border: 5px solid white;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
     }
-    .luxury-cluster-small { width: 50px; height: 50px; font-size: 18px; line-height: 40px; }
-    .luxury-cluster-medium { width: 65px; height: 65px; font-size: 22px; line-height: 55px; }
-    .luxury-cluster-large { width: 80px; height: 80px; font-size: 28px; line-height: 70px; }
+    .pie-small { width: 56px; height: 56px; }
+    .pie-medium { width: 72px; height: 72px; }
+    .pie-large { width: 90px; height: 90px; }
+    .pie-small .center-number { font-size: 18px; }
+    .pie-medium .center-number { font-size: 24px; }
+    .pie-large .center-number { font-size: 30px; }
   </style>
 </head>
 <body>
@@ -85,26 +93,54 @@
       });
     }
 
+    // Helper to generate SVG pie chart
+    function generatePieSVG(workTypeCounts, total) {
+      let cumulative = 0;
+      const slices = Object.entries(workTypeCounts).map(([type, count]) => {
+        const color = colorMap[type] || 'grey';
+        const percent = count / total;
+        const start = cumulative;
+        cumulative += percent;
+        const large = percent > 0.5 ? 1 : 0;
+        const startAngle = start * 360;
+        const endAngle = cumulative * 360;
+        const x1 = 50 + 50 * Math.cos(Math.PI * startAngle / 180);
+        const y1 = 50 + 50 * Math.sin(Math.PI * startAngle / 180);
+        const x2 = 50 + 50 * Math.cos(Math.PI * endAngle / 180);
+        const y2 = 50 + 50 * Math.sin(Math.PI * endAngle / 180);
+        return `<path d="M50,50 L${x1},${y1} A50,50 0 ${large},1 ${x2},${y2} Z" fill="${color}" />`;
+      }).join('');
+
+      return `<svg viewBox="0 0 100 100">${slices}</svg>`;
+    }
+
     async function init() {
       await new Promise(r => setTimeout(r, 100));
 
       map = L.map('map').setView([34.5, -119.5], 8);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
 
-      // LUXURY CLUSTER GROUP - the magic fix
       cluster = L.markerClusterGroup({
-        spiderfyOnMaxZoom: true,
-        showCoverageOnHover: false,
-        iconCreateFunction: function (c) {
-          const count = c.getChildCount();
-          let size = 'medium';
-          if (count < 10) size = 'small';
-          else if (count >= 30) size = 'large';
+        iconCreateFunction: function(c) {
+          const markers = c.getAllChildMarkers();
+          const total = markers.length;
+          const workTypeCounts = {};
+
+          markers.forEach(m => {
+            const wt = m.options.workType || 'Unknown';
+            workTypeCounts[wt] = (workTypeCounts[wt] || 0) + 1;
+          });
+
+          const size = total < 10 ? 'small' : total < 50 ? 'medium' : 'large';
+          const svg = generatePieSVG(workTypeCounts, total);
 
           return L.divIcon({
-            html: `<div>${count}</div>`,
-            className: `luxury-cluster luxury-cluster-${size}`,
-            iconSize: L.point(size === 'small' ? 50 : size === 'large' ? 80 : 65, size === 'small' ? 50 : size === 'large' ? 80 : 65)
+            html: `<div class="pie-cluster pie-${size}">
+                     ${svg}
+                     <div class="center-number">${total}</div>
+                   </div>`,
+            className: '',
+            iconSize: L.point(size === 'small' ? 56 : size === 'medium' ? 72 : 90, size === 'small' ? 56 : size === 'medium' ? 72 : 90)
           });
         }
       });
@@ -205,7 +241,7 @@
           iconSize: [25,41], iconAnchor: [12,41], popupAnchor: [1,-34], shadowSize: [41,41]
         });
 
-        const m = L.marker([lat,lon], {icon});
+        const m = L.marker([lat,lon], {icon, workType: p['Work Type']});
         const addr = [p['Street Address'], p.City, p.State, p['Zip Code']].filter(Boolean).join(', ');
         m.bindPopup(`<div class="project-popup"><strong>${p['Job Name']||'Unnamed'}</strong><br>${addr}<br><br><b>Work Type:</b> ${p['Work Type']||'—'}<br><b>Deal Stage:</b> ${p['Deal Stage']||'—'}</div>`);
         cluster.addLayer(m);
