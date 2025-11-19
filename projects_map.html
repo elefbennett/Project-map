@@ -5,16 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>SYV Projects Map</title>
 
-  <!-- Leaflet + Clustering -->
+  <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
 
-  <!-- TomSelect - Searchable Multi-Select -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.default.min.css">
+  <!-- TomSelect - Searchable dropdown -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" />
 
   <style>
-    /* ====================== Global & Luxury Design ====================== */
     :root {
       --color-primary: #722f37;
       --color-primary-light: #9c4a4f;
@@ -22,101 +21,86 @@
       --color-surface: #ffffff;
       --color-bg: #f9f8f6;
     }
-    body { margin:0; font-family:'Lato',sans-serif; background:var(--color-bg); color:#333; line-height:1.6; }
-    h1,h2,h3,h4 { font-family:'Playfair Display',serif; font-weight:700; }
-    h3 { font-size:1.8rem; }
+    body { margin:0; font-family:'Lato',sans-serif; background:var(--color-bg); color:#333; line-height:1.6; padding:20px 0; }
+    main { max-width:1400px; margin:0 auto; }
 
-    /* ====================== Map ====================== */
-    #map { height:80vh; width:100%; max-width:1400px; margin:20px auto; border-radius:16px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,0.12); position:relative; border:1px solid var(--color-border); }
+    #map { height:80vh; border-radius:16px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,0.12); position:relative; border:1px solid var(--color-border); }
 
-    /* Loading */
     #mapOverlay { position:absolute; inset:0; background:rgba(255,255,255,0.95); z-index:1000; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; font-size:1.4rem; }
     .spinner { width:56px; height:56px; border:6px solid #f3f3f3; border-top:6px solid var(--color-primary); border-radius:50%; animation:spin 1s linear infinite; }
     @keyframes spin { to { transform:rotate(360deg); } }
 
-    /* Top Controls */
     #topControls { position:absolute; top:16px; left:16px; z-index:1000; display:flex; gap:12px; flex-wrap:wrap; }
     .btn { background:rgba(255,255,255,0.94); padding:12px 20px; border:none; border-radius:50px; box-shadow:0 4px 15px rgba(0,0,0,0.2); font-weight:600; cursor:pointer; }
     .btn:hover { transform:translateY(-2px); }
 
-    /* Filters Panel */
-    #filters { max-width:1200px; margin:30px auto; padding:32px; background:var(--color-surface); border-radius:16px; box-shadow:0 8px 25px rgba(0,0,0,0.08); border:1px solid var(--color-border); display:grid; gap:28px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); transition:transform .4s; }
+    #filters { margin:30px auto; padding:32px; background:var(--color-surface); border-radius:16px; box-shadow:0 8px 25px rgba(0,0,0,0.08); border:1px solid var(--color-border); display:grid; gap:28px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); transition:transform .4s; }
     #filters.collapsed { transform:translateY(-110%); }
-    #filters h3 { margin:0 0 12px; color:var(--color-primary); }
-    .filter-group { display:flex; flex-direction:column; }
+    #filters h3 { margin:0 0 12px; color:var(--color-primary); font-size:1.5rem; }
+
     #searchBox { padding:14px 16px; border:1px solid var(--color-border); border-radius:12px; font-size:1.1rem; }
     #searchBox:focus { outline:none; border-color:var(--color-primary); box-shadow:0 0 0 4px rgba(114,47,55,0.15); }
 
     /* TomSelect Styling */
     .ts-wrapper { width:100%; }
-    .ts-control { padding:14px 16px !important; border:1px solid var(--color-border) !important; border-radius:12px !important; background:white !important; min-height:56px; font-size:1.1rem; }
-    .ts-dropdown { border-radius:12px !important; box-shadow:0 10px 30px rgba(0,0,0,0.12) !important; margin-top:8px; }
+    .ts-control { padding:14px 16px !important; border:1px solid var(--color-border) !important; border-radius:12px !important; background:white !important; min-height:56px; font-size:1.1rem; box-shadow:none !important; }
+    .ts-dropdown { border:1px solid var(--color-border) !important; border-radius:12px !important; box-shadow:0 10px 30px rgba(0,0,0,0.12) !important; margin-top:8px; background:white; }
     .ts-dropdown .option { padding:12px 16px !important; }
     .ts-dropdown .option.active { background:var(--color-primary) !important; color:white !important; }
-    .item { background:var(--color-primary) !important; color:white !important; border-radius:20px !important; padding:6px 12px !important; }
+    .item { background:var(--color-primary) !important; color:white !important; border-radius:20px !important; padding:6px 12px !important; font-size:0.9rem; }
 
-    /* Legend */
     .legend { grid-column:1/-1; display:flex; flex-wrap:wrap; gap:16px; justify-content:center; padding-top:12px; border-top:1px solid var(--color-border); }
-    .legend-item { display:flex; align-items:center; gap:10px; cursor:pointer; padding:6px 10px; border-radius:8px; transition:background .2s; }
+    .legend-item { display:flex; align-items:center; gap:10px; cursor:pointer; padding:6px 12px; border-radius:8px; transition:background .2s; }
     .legend-item:hover { background:#f5f0eb; }
     .legend-item .swatch { width:16px; height:16px; border-radius:50%; border:2px solid #999; }
 
     .filter-actions { display:flex; flex-direction:column; gap:16px; align-items:center; }
-    .result-count { font-weight:600; font-size:1.1rem; color:var(--color-primary); }
+    .result-count { font-weight:600; font-size:1.2rem; color:var(--color-primary); }
 
-    /* Dark Mode */
     body.dark { background:#121212 !important; color:#eee !important; }
     body.dark #filters, body.dark .project-popup { background:#1e1e1e !important; border-color:#444 !important; }
     body.dark .ts-control, body.dark #searchBox { background:#333 !important; color:#eee !important; border-color:#555 !important; }
 
     @media (max-width:768px) {
       #filters { padding:24px; margin:16px; grid-template-columns:1fr; }
-      #topControls { top:8px; left:8px; right:8px; justify-content:center; }
+      #topControls { justify-content:center; left:8px; right:8px; }
     }
   </style>
 </head>
 <body>
+  <main>
+    <div id="map">
+      <div id="mapOverlay"><div class="spinner"></div><div>Loading projects...</div></div>
+    </div>
+  </main>
 
-  <div id="map">
-    <div id="mapOverlay"><div class="spinner"></div><div>Loading projects...</div></div>
-  </div>
-
-  <!-- Scripts -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 
   <script>
-    // ==================== CONFIG ====================
     const SHEET_CSV_URL = 'https://corsproxy.io/?https://docs.google.com/spreadsheets/d/1fUKAQlPWiotRlFQw95qbvUjvxwNFJGWWT3RX6OcCKRI/export?format=csv';
-    const MARKER_COLORS = ['red','blue','green','orange','yellow','violet','grey','black'];
-    const workTypeColorMap = {};
-    let map, markerCluster, allProjects = [], tomSelect = null;
+    const COLORS = ['red','blue','green','orange','yellow','violet','grey','black'];
+    const colorMap = {};
+    let map, cluster, projects = [], tomSelect = null;
 
-    // ==================== DATA ====================
-    async function fetchProjects() {
+    async function loadData() {
       try {
-        const res = await fetch(SHEET_CSV_URL, { cache: 'no-store' });
-        if (!res.ok) throw new Error(res.status);
-        const csv = await res.text();
-        const lines = csv.trim().split('\n');
-        const keys = lines[0].split(',').map(k => k.trim());
-        return lines.slice(1).map(line => {
-          const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g,''));
-          const obj = {};
-          keys.forEach((k,i) => obj[k] = vals[i] || '');
-          return obj;
+        const r = await fetch(SHEET_CSV_URL, {cache:'no-store'});
+        const text = await r.text();
+        const lines = text.trim().split('\n');
+        const headers = lines[0].split(',').map(h=>h.trim());
+        return lines.slice(1).map(l => {
+          const vals = l.split(',').map(v=>v.trim().replace(/^"|"$/g,''));
+          const o = {};
+          headers.forEach((h,i) => o[h] = vals[i] || '');
+          return o;
         });
-      } catch (e) {
-        console.error(e);
-        document.getElementById('mapOverlay').innerHTML = '<div style="color:#c53030">Failed to load data</div>';
-        return [];
-      }
+      } catch(e) { console.error(e); return []; }
     }
 
-    // ==================== FILTERS UI ====================
-    function buildFiltersUI(workTypes) {
-      document.body.insertAdjacentHTML('beforeend', `
+    function buildFilters(workTypes) {
+      document.querySelector('main').insertAdjacentHTML('beforeend', `
         <section id="filters">
           <div class="filter-group">
             <h3>🔍 Search Projects</h3>
@@ -124,11 +108,11 @@
           </div>
           <div class="filter-group">
             <h3>Work Type</h3>
-            <select id="workTypeSelect" multiple placeholder="Type to search Work Types..."></select>
-            <small style="color:#666;margin-top:6px;">Start typing to search</small>
+            <select id="workTypeSelect" multiple placeholder="All Work Types"></select>
+            <small style="color:#666;margin-top:6px;">Type to search • Click chips to remove</small>
           </div>
           <div class="filter-actions">
-            <button id="resetFilters" class="btn" style="background:#666;">Reset All</button>
+            <button id="resetFilters" class="btn" style="background:#666;color:white;">Reset All</button>
             <span id="resultCount" class="result-count">Loading...</span>
           </div>
           <div id="legend" class="legend"><strong>Legend:</strong></div>
@@ -137,48 +121,46 @@
       // Initialize TomSelect
       tomSelect = new TomSelect('#workTypeSelect', {
         plugins: ['remove_button','dropdown_input'],
-        persist: false,
         create: false,
-        options: workTypes.map(wt => ({value: wt, text: wt})),
+        maxItems: null,
+        options: workTypes.map(w => ({value:w, text:w})),
         render: {
-          option: (data, escape) => {
-            const color = workTypeColorMap[data.value] || 'grey';
+          option: (d,escape) => {
+            const col = colorMap[d.value] || 'grey';
             return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;">
-              <span style="width:14px;height:14px;border-radius:50%;background:${color};border:1px solid #999;"></span>
-              ${escape(data.text)}
+              <span style="width:14px;height:14px;border-radius:50%;background:${col};border:1px solid #999;"></span>
+              ${escape(d.text)}
             </div>`;
           },
-          item: (data, escape) => {
-            const color = workTypeColorMap[data.value] || 'grey';
-            return `<div style="background:#722f37;color:white;padding:6px 12px;border-radius:20px;font-size:0.9rem;display:flex;align-items:center;gap:8px;">
-              <span style="width:10px;height:10px;border-radius:50%;background:${color};"></span>${escape(data.text)}
+          item: (d,escape) => {
+            const col = colorMap[d.value] || 'grey';
+            return `<div style="background:#722f37;color:white;padding:6px 12px;border-radius:20px;display:flex;align-items:center;gap:8px;font-size:0.9rem;">
+              <span style="width:10px;height:10px;border-radius:50%;background:${col};"></span>${escape(d.text)}
             </div>`;
           }
         }
       });
 
-      // Legend (click to add)
+      // Legend (clickable)
       const legend = document.getElementById('legend');
-      Object.entries(workTypeColorMap).forEach(([wt, color]) => {
+      Object.entries(colorMap).forEach(([type,col]) => {
         const el = document.createElement('div');
         el.className = 'legend-item';
-        el.innerHTML = `<span class="swatch" style="background:${color}"></span>${wt}`;
-        el.onclick = () => tomSelect.addItem(wt);
+        el.innerHTML = `<span class="swatch" style="background:${col}"></span>${type}`;
+        el.onclick = () => tomSelect.addItem(type);
         legend.appendChild(el);
       });
     }
 
-    // ==================== MAP INIT ====================
-    async function initMap() {
+    async function init() {
       map = L.map('map').setView([39.5, -98.35], 4);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
       }).addTo(map);
 
-      markerCluster = L.markerClusterGroup({ spiderfyOnMaxZoom: true, showCoverageOnHover: false });
-      map.addLayer(markerCluster);
+      cluster = L.markerClusterGroup({spiderfyOnMaxZoom:true});
+      map.addLayer(cluster);
 
-      // Top buttons
       document.getElementById('map').insertAdjacentHTML('beforeend', `
         <div id="topControls">
           <button id="toggleFilters" class="btn">⚙️ Filters</button>
@@ -186,94 +168,65 @@
           <button id="darkMode" class="btn">🌙 Dark</button>
         </div>`);
 
-      allProjects = await fetchProjects();
-      if (!allProjects.length) return;
+      projects = await loadData();
+      if (!projects.length) {
+        document.getElementById('mapOverlay').innerHTML = '<div style="color:#c53030">No data loaded</div>';
+        return;
+      }
 
-      const workTypes = [...new Set(allProjects.map(p => p['Work Type']).filter(Boolean))].sort();
-      workTypes.forEach((wt,i) => workTypeColorMap[wt] = MARKER_COLORS[i % MARKER_COLORS.length]);
+      const types = [...new Set(projects.map(p=>p['Work Type']).filter(Boolean))].sort();
+      types.forEach((t,i) => colorMap[t] = COLORS[i % COLORS.length]);
 
-      buildFiltersUI(workTypes);
+      buildFilters(types);
       document.getElementById('mapOverlay').remove();
-      document.getElementById('resultCount').textContent = `All ${allProjects.length} projects loaded`;
+      document.getElementById('resultCount').textContent = `All ${projects.length} projects loaded`;
       plot();
-    }
 
-    // ==================== FILTERING & PLOT ====================
-    function getFilters() {
-      const query = document.getElementById('searchBox').value.trim().toLowerCase();
-      const selected = tomSelect ? tomSelect.items : [];
-      return { query, selected };
-    }
+      // Live filtering
+      const live = () => setTimeout(plot, 300);
+      document.getElementById('searchBox').addEventListener('input', live);
+      tomSelect.on('change', plot);
 
-    function matches(p) {
-      const { query, selected } = getFilters();
-      if (selected.length && !selected.includes(p['Work Type'])) return false;
-      if (query && !Object.values(p).join(' ').toLowerCase().includes(query)) return false;
-      return true;
+      document.getElementById('resetFilters').onclick = () => {
+        document.getElementById('searchBox').value = '';
+        tomSelect.clear();
+        plot();
+      };
+      document.getElementById('locateMe').onclick = () => map.locate({setView:true,maxZoom:12});
+      document.getElementById('toggleFilters').onclick = () => document.getElementById('filters').classList.toggle('collapsed');
+      document.getElementById('darkMode').onclick = () => document.body.classList.toggle('dark');
     }
 
     function plot() {
-      markerCluster.clearLayers();
+      cluster.clearLayers();
       const bounds = L.latLngBounds();
       let count = 0;
+      const query = document.getElementById('searchBox').value.toLowerCase();
+      const selected = tomSelect ? tomSelect.items : [];
 
-      for (const p of allProjects) {
-        if (!matches(p)) continue;
-        const coords = parseLatLon(p);
-        if (!coords) continue;
+      for (const p of projects) {
+        if (selected.length && !selected.includes(p['Work Type'])) continue;
+        if (query && !Object.values(p).join(' ').toLowerCase().includes(query)) continue;
+        const lat = parseFloat(p.Latitude || p.latitude);
+        const lon = parseFloat(p.Longitude || p.longitude);
+        if (!lat || !lon) continue;
 
-        const marker = L.marker(coords, { icon: makeIcon(workTypeColorMap[p['Work Type']] || 'grey') });
-        const address = [p['Street Address'], p['City'], p['State'], p['Zip Code']].filter(Boolean).join(', ');
-        marker.bindPopup(`<div class="project-popup"><strong>${p['Job Name']||'Unnamed'}</strong><br>${address}<br><br><b>Work Type:</b> ${p['Work Type']||'—'}</div>`);
-        markerCluster.addLayer(marker);
-        bounds.extend(coords);
+        const marker = L.marker([lat,lon], {icon: L.icon({
+          iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${colorMap[p['Work Type']]||'grey'}.png`,
+          shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+          iconSize:[25,41], iconAnchor:[12,41], popupAnchor:[1,-34], shadowSize:[41,41]
+        })});
+        const addr = [p['Street Address'],p.City,p.State,p['Zip Code']].filter(Boolean).join(', ');
+        marker.bindPopup(`<div class="project-popup"><strong>${p['Job Name']||'Unnamed'}</strong><br>${addr}<br><br><b>Work Type:</b> ${p['Work Type']||'—'}</div>`);
+        cluster.addLayer(marker);
+        bounds.extend([lat,lon]);
         count++;
       }
-
-      document.getElementById('resultCount').textContent = count ? `${count} project${count>1?'s':''} shown` : 'No projects match';
+      document.getElementById('resultCount').textContent = count ? `${count} project${count>1?'s':''} shown` : 'No matches';
       if (count) map.fitBounds(bounds.pad(0.2));
     }
 
-    function parseLatLon(p) {
-      let lat = p['Latitude'] || p[' Latitude'] || p['lat'] || p[' latitude'];
-      let lon = p['Longitude'] || p[' Longitude'] || p['lon'] || p[' longitude'];
-      if (!lat || !lon) return null;
-      const [l1, l2] = [parseFloat(lat), parseFloat(lon)];
-      return isNaN(l1) || isNaN(l2) ? null : [l1, l2];
-    }
-
-    function makeIcon(color) {
-      return L.icon({
-        iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
-        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-        iconSize: [25,41], iconAnchor: [12,41], popupAnchor: [1,-34], shadowSize: [41,41]
-      });
-    }
-
-    // ==================== EVENTS ====================
-    let debounce;
-    const livePlot = () => { clearTimeout(debounce); debounce = setTimeout(plot, 300); };
-
-    document.addEventListener('DOMContentLoaded', () => {
-      initMap();
-
-      document.getElementById('searchBox')?.addEventListener('input', livePlot);
-      document.getElementById('resetFilters')?.addEventListener('click', () => {
-        document.getElementById('searchBox').value = '';
-        tomSelect?.clear();
-        plot();
-      });
-      document.getElementById('locateMe')?.addEventListener('click', () => {
-        map.locate({setView:true, maxZoom:12});
-        map.once('locationfound', e => L.marker(e.latlng).addTo(map).bindPopup('You are here').openPopup());
-      });
-      document.getElementById('toggleFilters')?.addEventListener('click', () => {
-        document.getElementById('filters').classList.toggle('collapsed');
-      });
-      document.getElementById('darkMode')?.addEventListener('click', () => {
-        document.body.classList.toggle('dark');
-      });
-    });
+    document.addEventListener('DOMContentLoaded', init);
   </script>
 </body>
 </html>
