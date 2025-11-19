@@ -79,7 +79,7 @@
       map = L.map('map').setView([34.5, -119.5], 8);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
 
-      // Original clean default clusters — exactly what you loved
+      // Default clean clusters — the original look you loved
       cluster = L.markerClusterGroup();
       map.addLayer(cluster);
 
@@ -179,9 +179,9 @@
         });
 
         // Project Number = Column A (Year) + "-" + Column B (Number) padded to 3 digits
-        const colA = (p['Year'] || p.Year || '').trim();
-        const colB = (p['Project #'] || p['Project Number'] || p['Project #'] || '').trim();
-        const projectNumber = colA && colB ? `${colA}-${colB.padStart(3, '0')}` : '—';
+        const year = (p['Year'] || '').trim();
+        const num = (p['Project #'] || '').trim();
+        const projectNumber = year && num ? `${year}-${num.padStart(3, '0')}` : '—';
 
         const addr = [p['Street Address'], p.City, p.State, p['Zip Code']].filter(Boolean).join(', ');
 
