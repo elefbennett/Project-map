@@ -5,23 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SYV Projects Map</title>
 
-  <!-- Leaflet CSS -->
+  <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
 
-  <!-- TomSelect CSS -->
+  <!-- TomSelect -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" />
 
   <style>
     body { margin:0; font-family:'Lato',sans-serif; background:#f9f8f6; padding:20px 0; }
     main { max-width:1400px; margin:0 auto; }
     #map { height:80vh; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,0.12); position:relative; border:1px solid #e8e2d9; }
-    #overlay { position:absolute; inset:0; background:rgba(255,255,255,0.95); z-index:999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; font-size:1.4rem; }
+    #loadingOverlay { position:absolute; inset:0; background:rgba(255,255,255,0.95); z-index:999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; font-size:1.4rem; }
     .spinner { width:56px; height:56px; border:6px solid #f3f3f3; border-top:6px solid #722f37; border-radius:50%; animation:s 1s linear infinite; }
     @keyframes s { to { transform:rotate(360deg); } }
 
-    #top { position:absolute; top:16px; left:16px; z-index:1000; display:flex; gap:12px; flex-wrap:wrap; }
+    #topControls { position:absolute; top:16px; left:16px; z-index:1000; display:flex; gap:12px; flex-wrap:wrap; }
     .btn { background:rgba(255,255,255,0.95); padding:12px 20px; border:none; border-radius:50px; box-shadow:0 4px 15px rgba(0,0,0,0.2); font-weight:600; cursor:pointer; }
 
     #filters { margin:30px auto; padding:32px; background:white; border-radius:16px; box-shadow:0 8px 25px rgba(0,0,0,0.08); border:1px solid #e8e2d9; display:grid; gap:28px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); }
@@ -37,17 +37,16 @@
     .legend-item:hover { background:#f5f0eb; }
     .legend-item .swatch { width:16px; height:16px; border-radius:50%; border:2px solid #999; }
 
-    #count { text-align:center; font-weight:600; font-size:1.2rem; color:#722f37; }
+    #count { text-align:center; font-weight:600; font-size:1.2rem; color:#722f37,color:#722f37; }
   </style>
 </head>
 <body>
   <main>
     <div id="map">
-      <div id="overlay"><div class="spinner"></div><div>Loading map...</div></div>
+      <div id="loadingOverlay"><div class="spinner"></div><div>Loading map...</div></div>
     </div>
   </main>
 
-  <!-- Scripts - FIXED URL for markercluster -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
@@ -57,25 +56,21 @@
     const colorMap = {};
     let map, cluster, projects = [], tom = null;
 
-    // Hard-coded data (works 100% offline)
     const DATA = [
-      {"Job Name":"Napa Valley Estate","Work Type":"Trellis Installation","Street Address":"123 Vineyard Ln","City":"Napa","State":"CA","Latitude":"38.5025","Longitude":"-122.4650"},
-      {"Job Name":"Sonoma Ridge","Work Type":"Irrigation System","Street Address":"456 Oak Rd","City":"Sonoma","State":"CA","Latitude":"38.2919","Longitude":"-122.4580"},
-      {"Job Name":"Santa Ynez Hills","Work Type":"Slope Stabilization - Shear Pins","Street Address":"789 Hill Dr","City":"Santa Ynez","State":"CA","Latitude":"34.6100","Longitude":"-120.0800"},
-      {"Job Name":"Paso Robles Vineyard","Work Type":"Trellis Installation","Street Address":"101 Grape Ave","City":"Paso Robles","State":"CA","Latitude":"35.6240","Longitude":"-120.6900"}
+      {"Job Name":"Napa Valley Estate","Work Type":"Trellis Installation","Street Address":"123 Vineyard Ln","City":"Napa","State":"CA","Latitude":38.5025,"Longitude":-122.4650},
+      {"Job Name":"Sonoma Ridge","Work Type":"Irrigation System","Street Address":"456 Oak Rd","City":"Sonoma","State":"CA","Latitude":38.2919,"Longitude":-122.4580},
+      {"Job Name":"Santa Ynez Hills","Work Type":"Slope Stabilization - Shear Pins","Street Address":"789 Hill Dr","City":"Santa Ynez","State":"CA","Latitude":34.6100,"Longitude":-120.0800},
+      {"Job Name":"Paso Robles Vineyard","Work Type":"Trellis Installation","Street Address":"101 Grape Ave","City":"Paso Robles","State":"CA","Latitude":35.6240,"Longitude":-120.6900}
     ];
 
     function init() {
       map = L.map('map').setView([36, -119], 7);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-      }).addTo(map);
-
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
       cluster = L.markerClusterGroup();
       map.addLayer(cluster);
 
       document.getElementById('map').innerHTML += `
-        <div id="top">
+        <div id="topControls">
           <button class="btn" id="toggle">⚙️ Filters</button>
           <button class="btn" id="near">📍 Near Me</button>
           <button class="btn" id="dark">🌙 Dark</button>
@@ -83,7 +78,7 @@
 
       projects = DATA;
 
-      const types = [...new Set(projects.map(p => p['Work Type']))].sort();
+      const types = [...new Set(projects.map(p => p['Work Type']))];
       types.forEach((t,i) => colorMap[t] = COLORS[i % COLORS.length]);
 
       document.querySelector('main').insertAdjacentHTML('beforeend', `
@@ -113,7 +108,7 @@
         legend.appendChild(el);
       });
 
-      document.getElementById('overlay').remove();
+      document.getElementById('loadingOverlay').remove();
       document.getElementById('count').textContent = `${projects.length} projects loaded`;
       plot();
 
@@ -136,9 +131,6 @@
       for (const p of projects) {
         if (sel.length && !sel.includes(p['Work Type'])) continue;
         if (q && !JSON.stringify(p).toLowerCase().includes(q)) continue;
-        const lat = parseFloat(p.Latitude);
-        const lon = parseFloat(p.Longitude);
-        if (!lat || !lon) continue;
 
         const icon = L.icon({
           iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${colorMap[p['Work Type']] || 'grey'}.png`,
@@ -146,10 +138,10 @@
           iconSize: [25,41], iconAnchor: [12,41], popupAnchor: [1,-34], shadowSize: [41,41]
         });
 
-        const m = L.marker([lat,lon], {icon});
-        m.bindPopup(`<strong>${p['Job Name']}</strong><br>${p['Street Address']}, ${p.City}, ${p.State}<br><b>Work Type:</b> ${p['Work Type']}`);
+        const m = L.marker([p.Latitude, p.Longitude], {icon});
+        m.bindPopup(`<strong>${p['Job Name']}</strong><br>${p['Street Address']}, ${p.City}<br><b>Work Type:</b> ${p['Work Type']}`);
         cluster.addLayer(m);
-        bounds.extend([lat,lon]);
+        bounds.extend([p.Latitude, p.Longitude]);
         count++;
       }
       document.getElementById('count').textContent = count ? `${count} project${count>1?'s':''} shown` : 'No results';
