@@ -5,45 +5,51 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SYV Projects Map</title>
 
-  <!-- Leaflet -->
+  <!-- Leaflet + Clustering -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
 
-  <!-- TomSelect -->
+  <!-- TomSelect (searchable dropdown) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" />
 
   <style>
-    body { margin:0; font-family:'Lato',sans-serif; background:#f9f8f6; padding:20px 0; }
+    :root { --primary: #722f37; --border: #e8e2d9; --bg: #f9f8f6; --surface: #fff; }
+    body { margin:0; font-family:'Lato',sans-serif; background:var(--bg); padding:20px 0; }
     main { max-width:1400px; margin:0 auto; }
-    #map { height:80vh; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,0.12); position:relative; border:1px solid #e8e2d9; }
-    #loadingOverlay { position:absolute; inset:0; background:rgba(255,255,255,0.95); z-index:999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; font-size:1.4rem; }
-    .spinner { width:56px; height:56px; border:6px solid #f3f3f3; border-top:6px solid #722f37; border-radius:50%; animation:s 1s linear infinite; }
+    #map { height:80vh; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,0.12); position:relative; border:1px solid var(--border); }
+    #loading { position:absolute; inset:0; background:rgba(255,255,255,0.95); z-index:999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; font-size:1.4rem; }
+    .spinner { width:56px; height:56px; border:6px solid #f3f3f3; border-top:6px solid var(--primary); border-radius:50%; animation:s 1s linear infinite; }
     @keyframes s { to { transform:rotate(360deg); } }
 
     #topControls { position:absolute; top:16px; left:16px; z-index:1000; display:flex; gap:12px; flex-wrap:wrap; }
     .btn { background:rgba(255,255,255,0.95); padding:12px 20px; border:none; border-radius:50px; box-shadow:0 4px 15px rgba(0,0,0,0.2); font-weight:600; cursor:pointer; }
 
-    #filters { margin:30px auto; padding:32px; background:white; border-radius:16px; box-shadow:0 8px 25px rgba(0,0,0,0.08); border:1px solid #e8e2d9; display:grid; gap:28px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); }
-    #filters h3 { margin:0 0 12px; color:#722f37; font-size:1.5rem; }
+    #filters { margin:30px auto; padding:32px; background:var(--surface); border-radius:16px; box-shadow:0 8px 25px rgba(0,0,0,0.08); border:1px solid var(--border); display:grid; gap:28px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); }
+    #filters.collapsed { transform:translateY(-110%); transition:transform .4s; }
+    #filters h3 { margin:0 0 12px; color:var(--primary); font-size:1.5rem; }
 
-    #searchBox { padding:14px 16px; border:1px solid #e8e2d9; border-radius:12px; font-size:1.1rem; width:100%; box-sizing:border-box; }
-    .ts-control { padding:14px 16px !important; border:1px solid #e8e2d9 !important; border-radius:12px !important; background:white !important; min-height:56px; font-size:1.1rem; }
+    #searchBox { padding:14px 16px; border:1px solid var(--border); border-radius:12px; font-size:1.1rem; width:100%; box-sizing:border-box; }
+    .ts-control { padding:14px 16px !important; border:1px solid var(--border) !important; border-radius:12px !important; background:white !important; min-height:56px; font-size:1.1rem; }
     .ts-dropdown { border-radius:12px !important; box-shadow:0 10px 30px rgba(0,0,0,0.12) !important; margin-top:8px; }
-    .item { background:#722f37 !important; color:white !important; border-radius:20px !important; padding:6px 12px !important; }
+    .item { background:var(--primary) !important; color:white !important; border-radius:20px !important; padding:6px 12px !important; }
 
-    .legend { grid-column:1/-1; display:flex; flex-wrap:wrap; gap:16px; justify-content:center; padding-top:12px; border-top:1px solid #e8e2d9; }
+    .legend { grid-column:1/-1; display:flex; flex-wrap:wrap; gap:16px; justify-content:center; padding-top:12px; border-top:1px solid var(--border); }
     .legend-item { display:flex; align-items:center; gap:10px; cursor:pointer; padding:6px 12px; border-radius:8px; transition:background .2s; }
     .legend-item:hover { background:#f5f0eb; }
     .legend-item .swatch { width:16px; height:16px; border-radius:50%; border:2px solid #999; }
 
-    #count { text-align:center; font-weight:600; font-size:1.2rem; color:#722f37,color:#722f37; }
+    #count { text-align:center; font-weight:600; font-size:1.2rem; color:var(--primary); }
+
+    body.dark { background:#121212 !important; color:#eee !important; }
+    body.dark #filters, body.dark .project-popup { background:#1e1e1e !important; border-color:#444 !important; }
+    body.dark .ts-control, body.dark #searchBox { background:#333 !important; color:#eee !important; border-color:#555 !important; }
   </style>
 </head>
 <body>
   <main>
     <div id="map">
-      <div id="loadingOverlay"><div class="spinner"></div><div>Loading map...</div></div>
+      <div id="loading"><div class="spinner"></div><div>Loading your projects...</div></div>
     </div>
   </main>
 
@@ -52,19 +58,28 @@
   <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 
   <script>
+    // Your published CSV link — works perfectly!
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTB_eYjbWk8gM-dAyY2gNFiJ4k60S3DRpF0AyMIe-8J2FyqiquIyraVjv9yHZ4tuMywAjkqRHV9V5BD/pub?output=csv";
+
     const COLORS = ['red','blue','green','orange','yellow','violet','grey','black'];
     const colorMap = {};
     let map, cluster, projects = [], tom = null;
 
-    const DATA = [
-      {"Job Name":"Napa Valley Estate","Work Type":"Trellis Installation","Street Address":"123 Vineyard Ln","City":"Napa","State":"CA","Latitude":38.5025,"Longitude":-122.4650},
-      {"Job Name":"Sonoma Ridge","Work Type":"Irrigation System","Street Address":"456 Oak Rd","City":"Sonoma","State":"CA","Latitude":38.2919,"Longitude":-122.4580},
-      {"Job Name":"Santa Ynez Hills","Work Type":"Slope Stabilization - Shear Pins","Street Address":"789 Hill Dr","City":"Santa Ynez","State":"CA","Latitude":34.6100,"Longitude":-120.0800},
-      {"Job Name":"Paso Robles Vineyard","Work Type":"Trellis Installation","Street Address":"101 Grape Ave","City":"Paso Robles","State":"CA","Latitude":35.6240,"Longitude":-120.6900}
-    ];
+    async function loadData() {
+      const r = await fetch(CSV_URL);
+      const text = await r.text();
+      const lines = text.trim().split('\n');
+      const headers = lines[0].split(',').map(h => h.trim());
+      projects = lines.slice(1).map(line => {
+        const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+        const o = {};
+        headers.forEach((h,i) => o[h] = vals[i] || '');
+        return o;
+      });
+    }
 
-    function init() {
-      map = L.map('map').setView([36, -119], 7);
+    async function init() {
+      map = L.map('map').setView([34.5, -119.5], 8);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
       cluster = L.markerClusterGroup();
       map.addLayer(cluster);
@@ -76,16 +91,16 @@
           <button class="btn" id="dark">🌙 Dark</button>
         </div>`;
 
-      projects = DATA;
+      await loadData();
 
-      const types = [...new Set(projects.map(p => p['Work Type']))];
+      const types = [...new Set(projects.map(p => p['Work Type']).filter(Boolean))].sort();
       types.forEach((t,i) => colorMap[t] = COLORS[i % COLORS.length]);
 
       document.querySelector('main').insertAdjacentHTML('beforeend', `
         <section id="filters">
-          <div><h3>🔍 Search</h3><input type="text" id="searchBox" placeholder="Job name, city..."></div>
-          <div><h3>Work Type</h3><select id="workTypeSelect" multiple placeholder="All types"></select></div>
-          <div style="text-align:center"><button id="reset" class="btn" style="background:#666;color:white">Reset</button><div id="count"></div></div>
+          <div><h3>🔍 Search Projects</h3><input type="text" id="searchBox" placeholder="Job name, city, address..."></div>
+          <div><h3>Work Type</h3><select id="workTypeSelect" multiple placeholder="All Work Types"></select></div>
+          <div style="text-align:center"><button id="reset" class="btn" style="background:#666;color:white">Reset All</button><div id="count"></div></div>
           <div id="legend" class="legend"><strong>Legend:</strong></div>
         </section>`);
 
@@ -108,7 +123,7 @@
         legend.appendChild(el);
       });
 
-      document.getElementById('loadingOverlay').remove();
+      document.getElementById('loading').remove();
       document.getElementById('count').textContent = `${projects.length} projects loaded`;
       plot();
 
@@ -130,7 +145,10 @@
 
       for (const p of projects) {
         if (sel.length && !sel.includes(p['Work Type'])) continue;
-        if (q && !JSON.stringify(p).toLowerCase().includes(q)) continue;
+        if (q && !Object.values(p).join(' ').toLowerCase().includes(q)) continue;
+        const lat = parseFloat(p.Latitude || p.latitude);
+        const lon = parseFloat(p.Longitude || p.longitude);
+        if (!lat || !lon) continue;
 
         const icon = L.icon({
           iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${colorMap[p['Work Type']] || 'grey'}.png`,
@@ -138,13 +156,14 @@
           iconSize: [25,41], iconAnchor: [12,41], popupAnchor: [1,-34], shadowSize: [41,41]
         });
 
-        const m = L.marker([p.Latitude, p.Longitude], {icon});
-        m.bindPopup(`<strong>${p['Job Name']}</strong><br>${p['Street Address']}, ${p.City}<br><b>Work Type:</b> ${p['Work Type']}`);
+        const m = L.marker([lat,lon], {icon});
+        const addr = [p['Street Address'], p.City, p.State, p['Zip Code']].filter(Boolean).join(', ');
+        m.bindPopup(`<div class="project-popup"><strong>${p['Job Name']||'Unnamed Project'}</strong><br>${addr}<br><br><b>Work Type:</b> ${p['Work Type']||'—'}</div>`);
         cluster.addLayer(m);
-        bounds.extend([p.Latitude, p.Longitude]);
+        bounds.extend([lat,lon]);
         count++;
       }
-      document.getElementById('count').textContent = count ? `${count} project${count>1?'s':''} shown` : 'No results';
+      document.getElementById('count').textContent = count ? `${count} project${count>1?'s':''} shown` : 'No projects match';
       if (count) map.fitBounds(bounds.pad(0.2));
     }
 
