@@ -134,6 +134,7 @@
         legend.appendChild(el);
       });
 
+      // FIXED: Correct ID "loading"
       document.getElementById('loading').remove();
       document.getElementById('count').textContent = `${projects.length} projects loaded`;
       plot();
@@ -176,23 +177,9 @@
           iconSize: [25,41], iconAnchor: [12,41], popupAnchor: [1,-34], shadowSize: [41,41]
         });
 
-        // === PROJECT NUMBER = Column A (Year) + "-" + Column B (Number), padded to 3 digits ===
-        const year = p['Year'] || p.Year || '';
-        const numRaw = p['Project #'] || p['Project #'] || p['Project Number'] || '';
-        const num = numRaw.padStart(3, '0');
-        const projectNumber = year && num ? `${year}-${num}` : '—';
-
-        const addr = [p['Street Address'], p.City, p.State, p['Zip Code']].filter(Boolean).join(', ');
-
         const m = L.marker([lat,lon], {icon});
-        m.bindPopup(`
-          <div class="project-popup">
-            <strong style="font-size:1.4rem; color:#722f37;">${projectNumber}</strong><br>
-            <strong>${p['Job Name'] || 'Unnamed Project'}</strong><br>
-            ${addr}<br><br>
-            <b>Work Type:</b> ${p['Work Type'] || '—'}<br>
-            <b>Deal Stage:</b> ${p['Deal Stage'] || '—'}
-          </div>`);
+        const addr = [p['Street Address'], p.City, p.State, p['Zip Code']].filter(Boolean).join(', ');
+        m.bindPopup(`<div class="project-popup"><strong>${p['Job Name']||'Unnamed'}</strong><br>${addr}<br><br><b>Work Type:</b> ${p['Work Type']||'—'}<br><b>Deal Stage:</b> ${p['Deal Stage']||'—'}</div>`);
         cluster.addLayer(m);
         bounds.extend([lat,lon]);
         count++;
