@@ -37,23 +37,22 @@
 
     #count { text-align:center; font-weight:600; font-size:1.2rem; color:var(--primary); }
 
-    /* === CLEAN, MODERN, LUXURY CLUSTER CIRCLES === */
-    .modern-cluster {
-      background: rgba(255, 255, 255, 0.78);
-      backdrop-filter: blur(8px);
-      border: 4px solid rgba(255, 255, 255, 0.9);
-      border-radius: 50%;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.18);
-      color: #333;
+    /* === ORIGINAL LUXURY BURGUNDY CLUSTERS (your favorite from the beginning) === */
+    .luxury-cluster {
+      background: var(--primary);
+      color: white;
       font-weight: bold;
+      text-align: center;
+      border-radius: 50%;
+      border: 5px solid white;
+      box-shadow: 0 8px 25px rgba(114,47,55,0.4);
       display: flex;
       align-items: center;
       justify-content: center;
-      text-shadow: 0 1px 3px rgba(255,255,255,0.8);
     }
-    .modern-cluster-small { width: 52px; height: 52px; font-size: 17px; }
-    .modern-cluster-medium { width: 68px; height: 68px; font-size: 23px; }
-    .modern-cluster-large { width: 84px; height: 84px; font-size: 29px; }
+    .luxury-cluster-small { width: 50px; height: 50px; font-size: 18px; line-height: 40px; }
+    .luxury-cluster-medium { width: 66px; height: 66px; font-size: 24px; line-height: 56px; }
+    .luxury-cluster-large { width: 82px; height: 82px; font-size: 30px; line-height: 72px; }
   </style>
 </head>
 <body>
@@ -101,8 +100,8 @@
 
           return L.divIcon({
             html: `<div>${count}</div>`,
-            className: `modern-cluster modern-cluster-${size}`,
-            iconSize: L.point(size === 'small' ? 52 : size === 'medium' ? 68 : 84, size === 'small' ? 52 : size === 'medium' ? 68 : 84)
+            className: `luxury-cluster luxury-cluster-${size}`,
+            iconSize: L.point(size === 'small' ? 50 : size === 'medium' ? 66 : 82, size === 'small' ? 50 : size === 'medium' ? 66 : 82)
           });
         }
       });
@@ -137,7 +136,7 @@
         placeholder: "All Work Types",
         options: workTypes.map(t => ({value: t, text: t})),
         render: {
-          option: (d,e) => `<div style="delimiter:flex;align-items:center;gap:10px;padding:8px 0"><span style="width:14px;height:14px;border-radius:50%;background:${colorMap[d.value]||'grey'};border:1px solid #999"></span>${e(d.text)}</div>`,
+          option: (d,e) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0"><span style="width:14px;height:14px;border-radius:50%;background:${colorMap[d.value]||'grey'};border:1px solid #999"></span>${e(d.text)}</div>`,
           item: (d,e) => `<div style="background:#722f37;color:white;padding:6px 12px;border-radius:20px;display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:50%;background:${colorMap[d.value]||'grey'}"></span>${e(d.text)}</div>`
         }
       });
