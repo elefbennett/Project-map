@@ -7,7 +7,6 @@
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" />
 
   <style>
@@ -38,23 +37,22 @@
 
     #count { text-align:center; font-weight:600; font-size:1.2rem; color:var(--primary); }
 
-    /* === BEAUTIFUL CUSTOM CLUSTER ICONS === */
-    .custom-cluster {
-      background: var(--primary) !important;
-      border: 4px solid white !important;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
-      color: white !important;
-      font-weight: bold !important;
-      font-size: 16px !important;
-      line-height: 48px !important;
-      text-align: center !important;
+    /* === LUXURY CLUSTER ICONS - BIG, READABLE, BEAUTIFUL === */
+    .luxury-cluster {
+      background: var(--primary);
+      color: white;
+      font-weight: bold;
+      text-align: center;
+      border-radius: 50%;
+      border: 5px solid white;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    .custom-cluster div {
-      background: transparent !important;
-    }
-    .custom-cluster-small { width: 44px !important; height: 44px !important; border-radius: 22px !important; line-height: 36px !important; font-size: 14px !important; }
-    .custom-cluster-medium { width: 56px !important; height: 56px !important; border-radius: 28px !important; line-height: 48px !important; font-size: 18px !important; }
-    .custom-cluster-large { width: 68px !important; height: 68px !important; border-radius: 34px !important; line-height: 60px !important; font-size: 22px !important; }
+    .luxury-cluster-small { width: 50px; height: 50px; font-size: 18px; line-height: 40px; }
+    .luxury-cluster-medium { width: 65px; height: 65px; font-size: 22px; line-height: 55px; }
+    .luxury-cluster-large { width: 80px; height: 80px; font-size: 28px; line-height: 70px; }
   </style>
 </head>
 <body>
@@ -93,18 +91,20 @@
       map = L.map('map').setView([34.5, -119.5], 8);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
 
-      // Custom beautiful clusters
+      // LUXURY CLUSTER GROUP - the magic fix
       cluster = L.markerClusterGroup({
-        iconCreateFunction: function(cluster) {
-          const count = cluster.getChildCount();
-          let sizeClass = 'custom-cluster-medium';
-          if (count < 10) sizeClass = 'custom-cluster-small';
-          else if (count >= 50) sizeClass = 'custom-cluster-large';
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        iconCreateFunction: function (c) {
+          const count = c.getChildCount();
+          let size = 'medium';
+          if (count < 10) size = 'small';
+          else if (count >= 30) size = 'large';
 
           return L.divIcon({
-            html: `<div><span>${count}</span></div>`,
-            className: `custom-cluster ${sizeClass}`,
-            iconSize: L.point(50, 50, true)
+            html: `<div>${count}</div>`,
+            className: `luxury-cluster luxury-cluster-${size}`,
+            iconSize: L.point(size === 'small' ? 50 : size === 'large' ? 80 : 65, size === 'small' ? 50 : size === 'large' ? 80 : 65)
           });
         }
       });
