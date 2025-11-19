@@ -80,6 +80,8 @@ p { margin: 0 0 1em; }
   letter-spacing: 0.5px;
   transition: all 0.3s ease;
   box-shadow: 0 4px 15px rgba(114, 47, 55, 0.3);
+  border: none;
+  cursor: pointer;
 }
 
 .btn:hover {
@@ -88,8 +90,12 @@ p { margin: 0 0 1em; }
   box-shadow: 0 8px 25px rgba(114, 47, 55, 0.4);
 }
 
-.btn:active {
-  transform: translateY(-1px);
+.btn.secondary {
+  background: #666;
+}
+
+.btn.secondary:hover {
+  background: #888;
 }
 
 /* ====================== Header ====================== */
@@ -104,65 +110,6 @@ p { margin: 0 0 1em; }
   color: var(--color-primary);
 }
 
-/* ====================== Dashboard & Events ====================== */
-.dashboard {
-  background-color: #f4f1ee;
-  padding: 40px 20px;
-  min-height: 100vh;
-}
-
-.events {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: grid;
-  gap: 28px;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-}
-
-.event-card {
-  background: var(--color-surface);
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 8px 25px rgba(0,0,0,0.08);
-  transition: all 0.3s ease;
-  display: flex;
-  flex-direction: column;
-}
-
-.event-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 20px 40px rgba(0,0,0,0.15);
-}
-
-.event-card img {
-  width: 100%;
-  height: 200px;
-  object-fit: cover;
-}
-
-.event-card .content {
-  padding: 24px;
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.event-card h3 {
-  color: var(--color-primary);
-  margin-bottom: 0.5em;
-}
-
-.event-card .date {
-  font-size: 0.9rem;
-  color: var(--color-muted);
-  margin-bottom: 1em;
-}
-
-.event-card .btn {
-  margin-top: auto;
-  text-align: center;
-}
-
 /* ====================== Map Page ====================== */
 #map {
   height: 80vh;
@@ -171,63 +118,224 @@ p { margin: 0 0 1em; }
   overflow: hidden;
   box-shadow: 0 10px 30px rgba(0,0,0,0.12);
   border: 1px solid var(--color-border);
+  position: relative;
+  margin: 20px auto;
+  max-width: 1400px;
 }
 
 .project-popup {
   font-size: 1rem;
   line-height: 1.5;
+  min-width: 240px;
 }
 
-/* ====================== Filters ====================== */
+/* ====================== Loading Overlay ====================== */
+#mapOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.95);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  font-size: 1.4rem;
+  color: var(--color-dark);
+}
+
+.spinner {
+  width: 56px;
+  height: 56px;
+  border: 6px solid #f3f3f3;
+  border-top: 6px solid var(--color-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ====================== Top Controls (Near Me, Filters, Dark Mode) ====================== */
+#topControls {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 1000;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+#topControls .btn {
+  background: rgba(255,255,255,0.94);
+  padding: 12px 20px;
+  font-size: 0.95rem;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+/* ====================== Filters Panel ====================== */
 #filters {
   max-width: 1200px;
   margin: 30px auto;
-  padding: 20px;
+  padding: 32px;
   background: var(--color-surface);
   border-radius: 16px;
   box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+  border: 1px solid var(--color-border);
+  display: grid;
+  gap: 28px;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  transition: transform 0.4s ease;
+}
+
+#filters.collapsed {
+  transform: translateY(-110%);
+}
+
+#filters h3 {
+  margin: 0 0 12px;
+  color: var(--color-primary);
+  font-size: 1.3rem;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+}
+
+#searchBox {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  font-size: 1.1rem;
+  transition: all 0.3s;
+}
+
+#searchBox:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(114, 47, 55, 0.15);
+}
+
+/* Beautiful Multi-Select Dropdown */
+#workTypeSelect {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: white;
+  font-size: 1rem;
+  max-height: 240px;
+  overflow-y: auto;
+  transition: all 0.3s;
+}
+
+#workTypeSelect:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(114, 47, 55, 0.15);
+}
+
+#workTypeSelect option {
+  padding: 10px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+#workTypeSelect option:checked {
+  background: var(--color-primary);
+  color: white;
+}
+
+/* Filter Actions & Result Count */
+.filter-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  justify-content: center;
+  align-items: center;
+}
+
+.result-count {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--color-primary);
+}
+
+/* Legend */
+.legend {
+  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
   align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
   justify-content: center;
-}
-
-#filters label {
-  font-weight: 600;
-  color: var(--color-dark);
-}
-
-#filters select,
-#filters input[type="date"] {
-  padding: 10px 14px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
   font-size: 1rem;
-  background: white;
-  min-width: 180px;
 }
 
-#filters button {
-  background: var(--color-primary);
-  color: white;
-  border: none;
-  padding: 12px 28px;
-  border-radius: 50px;
-  font-weight: 600;
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: background 0.2s;
 }
 
-#filters button:hover {
-  background: var(--color-primary-light);
-  transform: translateY(-2px);
+.legend-item:hover {
+  background: #f5f0eb;
+}
+
+.legend-item .swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #999;
+  flex-shrink: 0;
+}
+
+/* Dark Mode */
+body.dark {
+  background: #121212 !important;
+  color: #eee !important;
+}
+
+body.dark #filters,
+body.dark .project-popup,
+body.dark #topControls .btn {
+  background: #1e1e1e !important;
+  border-color: #444 !important;
+}
+
+body.dark #searchBox,
+body.dark #workTypeSelect {
+  background: #333 !important;
+  color: #eee !important;
+  border-color: #555 !important;
+}
+
+body.dark .legend-item:hover {
+  background: #333 !important;
 }
 
 /* ====================== Responsive ====================== */
 @media (max-width: 768px) {
   .hero h1 { font-size: 3rem; }
   .hero { padding: 36px 24px; }
-  #filters { padding: 16px; justify-content: stretch; }
-  #filters > * { flex: 1; min-width: 140px; }
+  #filters { 
+    padding: 24px; 
+    margin: 16px;
+    grid-template-columns: 1fr;
+  }
+  #topControls { 
+    top: 8px; 
+    left: 8px; 
+    right: 8px; 
+    justify-content: center;
+  }
 }
