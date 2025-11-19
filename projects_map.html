@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DRS Projects Map</title>
+  <title>SYV Projects Map</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
@@ -79,7 +79,6 @@
       map = L.map('map').setView([34.5, -119.5], 8);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
 
-      // Default clean clusters — the original look you loved
       cluster = L.markerClusterGroup();
       map.addLayer(cluster);
 
@@ -178,7 +177,7 @@
           iconSize: [25,41], iconAnchor: [12,41], popupAnchor: [1,-34], shadowSize: [41,41]
         });
 
-        // FIXED: Use exact header names from your sheet
+        // FIXED: Use the exact header names from your sheet
         const year = (p['Year'] || '').trim();
         const projectNum = (p['Project #'] || '').trim();
         const projectNumber = year && projectNum ? `${year}-${projectNum.padStart(3, '0')}` : '—';
