@@ -2,62 +2,303 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>DRS Engineering Projects Map</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SYV Projects Map</title>
 
-  <!-- Leaflet CSS (versioned + SRI) -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin=""
-  />
-
-  <!-- Your site styles (optional) -->
-  <link rel="stylesheet" href="styles.css" />
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
 
   <style>
-    html, body { height: 100%; margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
-    main { max-width: 1200px; margin: 0 auto; padding: 16px; }
-    #map { height: 80vh; width: 100%; margin: 0 auto; border-radius: 12px; }
-    .project-popup { font-size: 1rem; }
+    :root {
+      --color-primary: #722f37;
+      --color-primary-light: #9c4a4f;
+      --color-surface: #ffffff;
+      --color-border: #e8e2d9;
+      --color-bg: #f9f8f6;
+      --color-muted: #666;
+    }
+    body { margin:0; font-family:'Lato',sans-serif; background:var(--color-bg); color:#333; }
+    #map { height:80vh; width:100%; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,0.12); margin:20px auto; position:relative; }
+    #mapOverlay { position:absolute; inset:0; background:rgba(255,255,255,0.95); z-index:1000; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; font-size:1.3rem; }
+    .spinner { width:48px; height:48px; border:5px solid #f3f3f3; border-top:5px solid var(--color-primary); border-radius:50%; animation:spin 1s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    #filters {
+      max-width:1200px; margin:30px auto; padding:28px; background:var(--color-surface);
+      border-radius:16px; box-shadow:0 8px 25px rgba(0,0,0,0.08); border:1px solid var(--color-border);
+      display:grid; gap:24px; grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+    }
+    #filters h3 { margin:0 0 12px; color:var(--color-primary); font-size:1.25rem; }
+    #searchBox { width:100%; padding:12px 16px; border:1px solid var(--color-border); border-radius:8px; font-size:1rem; }
+    .checkbox-group { display:flex; flex-wrap:wrap; gap:10px; }
+    .checkbox-label {
+      display:flex; align-items:center; gap:8px; background:#f8f5f2; padding:6px 12px;
+      border-radius:8px; cursor:pointer; transition:all .2s; font-size:0.95rem;
+    }
+    .checkbox-label:hover { background:#ede7e0; }
+    .checkbox-label input { opacity:0; position:absolute; }
+    .checkmark { width:18px; height:18px; border:2px solid #ccc; border-radius:4px; position:relative; }
+    .checkbox-label input:checked + .checkmark { background:var(--color-primary); border-color:var(--color-primary); }
+    .checkbox-label input:checked + .checkmark::after { content:'✓'; color:white; font-weight:bold; position:absolute; top:-2px; left:3px; }
+
+    .filter-actions { display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:center; }
+    .btn {
+      background:var(--color-primary); color:white; border:none; padding:12px 24px;
+      border-radius:50px; font-weight:600; cursor:pointer; transition:all .3s;
+    }
+    .btn:hover { background:var(--color-primary-light); transform:translateY(-2px); }
+    .btn.secondary { background:#666; }
+    .result-count { font-weight:600; color:var(--color-primary); }
+
+    .legend { grid-column:1/-1; display:flex; flex-wrap:wrap; gap:16px; align-items:center; padding-top:12px; border-top:1px solid var(--color-border); }
+    .legend-item { display:flex; align-items:center; gap:8px; cursor:pointer; }
+    .legend-item .swatch { width:14px; height:14px; border-radius:50%; border:1px solid #999; }
+
+    #topControls { position:absolute; top:12px; left:12px; z-index:1000; display:flex; gap:10px; flex-wrap:wrap; }
+    #toggleFilters { background:rgba(255,255,255,0.9); padding:10px 16px; border:none; border-radius:50px; box-shadow:0 4px 12px rgba(0,0,0,0.15); }
+
+    @media (max-width:768px) {
+      #filters { padding:20px; margin:10px; transition:transform .4s; }
+      #filters.collapsed { transform:translateY(-110%); }
+      #topControls { top:60px; }
+    }
   </style>
 </head>
 <body>
-  <header class="header">
-    <h1>DRS Engineering Projects Map</h1>
-    <p>Explore all DRS Engineering projects across the US</p>
-  </header>
 
-  <main>
-    <div id="map"></div>
-    <noscript style="color:#b00">This page requires JavaScript.</noscript>
-  </main>
+  <div id="map">
+    <div id="mapOverlay"><div class="spinner"></div><div>Loading projects…</div></div>
+    <div id="topControls">
+      <button id="toggleFilters" class="btn">⚙️ Filters</button>
+      <button id="locateMe" class="btn">📍 Near Me</button>
+      <button id="darkMode" class="btn">🌙 Dark</button>
+    </div>
+  </div>
 
-  <!-- Leaflet JS (versioned + SRI) — must load BEFORE your script -->
-  <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-    crossorigin=""
-  ></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
 
-  <!-- (Optional) tiny inline sanity check: shows LA map if Leaflet loaded correctly.
-  Remove or comment out after testing.
   <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const testMap = L.map('map').setView([34.05, -118.25], 10);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(testMap);
-  });
-  </script>
-  -->
+    // ==================== CONFIG ====================
+    const SHEET_CSV_URL = 'https://corsproxy.io/?https://docs.google.com/spreadsheets/d/1fUKAQlPWiotRlFQw95qbvUjvxwNFJGWWT3RX6OcCKRI/export?format=csv';
+    const MARKER_COLORS = ['red','blue','green','orange','yellow','violet','grey','black'];
+    const workTypeColorMap = {};
 
-  <!-- Your app script (cache-busted + deferred) -->
-  <script src="script.js?v=2025-10-28-04" defer></script>
+    // ==================== DATA FETCH ====================
+    async function fetchProjects() {
+      try {
+        const res = await fetch(SHEET_CSV_URL, { cache: 'no-store' });
+        if (!res.ok) throw new Error(res.status);
+        const csv = await res.text();
+        const lines = csv.trim().split('\n');
+        if (!lines.length) return [];
+        const keys = lines[0].split(',').map(k => k.trim());
+        return lines.slice(1).map(line => {
+          const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g,''));
+          const obj = {};
+          keys.forEach((k,i) => obj[k] = vals[i] || '');
+          return obj;
+        });
+      } catch (e) {
+        console.error(e);
+        document.getElementById('mapOverlay').innerHTML = '<div style="color:#c53030">⚠️ Could not load data</div>';
+        return [];
+      }
+    }
+
+    // ==================== MAIN INIT ====================
+    let map, markerCluster, allProjects = [];
+
+    async function initMap() {
+      const mapEl = document.getElementById('map');
+      if (!mapEl) return;
+
+      map = L.map('map').setView([39.5, -98.35], 4);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+
+      markerCluster = L.markerClusterGroup({
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        maxClusterRadius: 60
+      });
+      map.addLayer(markerCluster);
+
+      allProjects = await fetchProjects();
+      if (!allProjects.length) return;
+
+      // Build filters + legend
+      buildFilters();
+      plot(); // initial full plot
+
+      document.getElementById('mapOverlay').style.display = 'none';
+    }
+
+    // ==================== FILTERS UI ====================
+    function buildFilters() {
+      const workTypes = [...new Set(allProjects.map(p => p['Work Type']).filter(Boolean))].sort();
+      const dealStages = [...new Set(allProjects.map(p => p['Deal Stage']).filter(Boolean))].sort();
+
+      workTypes.forEach((wt,i) => workTypeColorMap[wt] = MARKER_COLORS[i % MARKER_COLORS.length]);
+
+      const filtersHTML = `
+        <section id="filters">
+          <div class="filter-group">
+            <h3>🔍 Search Projects</h3>
+            <input type="text" id="searchBox" placeholder="City, job name, vineyard..." />
+          </div>
+          <div class="filter-group">
+            <h3>Work Type</h3>
+            <div id="workTypeGroup" class="checkbox-group"></div>
+          </div>
+          <div class="filter-group">
+            <h3>Deal Stage</h3>
+            <div id="dealStageGroup" class="checkbox-group"></div>
+          </div>
+          <div class="filter-actions">
+            <button id="resetFilters" class="btn secondary">Reset All</button>
+            <span id="resultCount" class="result-count">All ${allProjects.length} projects loaded</span>
+          </div>
+          <div id="legend" class="legend"><strong>Legend:</strong></div>
+        </section>`;
+
+      document.body.insertAdjacentHTML('beforeend', filtersHTML);
+
+      // Populate checkboxes
+      const populate = (id, items) => {
+        const el = document.getElementById(id);
+        el.innerHTML = items.map(val => `
+          <label class="checkbox-label">
+            <input type="checkbox" value="${val}">
+            <span class="checkmark"></span>${val}
+          </label>`).join('');
+      };
+      populate('workTypeGroup', workTypes);
+      populate('dealStageGroup', dealStages);
+
+      // Legend
+      const legend = document.getElementById('legend');
+      Object.entries(workTypeColorMap).forEach(([wt, color]) => {
+        const div = document.createElement('div');
+        div.className = 'legend-item';
+        div.innerHTML = `<span class="swatch" style="background:${color}"></span>${wt}`;
+        div.onclick = () => {
+          const cb = document.querySelector(`#workTypeGroup input[value="${wt}"]`);
+          if (cb) { cb.checked = !cb.checked; plot(); }
+        };
+        legend.appendChild(div);
+      });
+
+      // Live filtering (debounced)
+      let debounce;
+      const livePlot = () => {
+        clearTimeout(debounce);
+        debounce = setTimeout(plot, 300);
+      };
+      document.getElementById('filters').addEventListener('change', livePlot);
+      document.getElementById('searchBox').addEventListener('input', livePlot);
+    }
+
+    // ==================== PLOTTING ====================
+    function makeIcon(color) {
+      return L.icon({
+        iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+        iconSize: [25,41], iconAnchor: [12,41], popupAnchor: [1,-34],
+        shadowSize: [41,41]
+      });
+    }
+
+    function parseLatLon(p) {
+      let lat = p['Latitude'] || p[' Latitude'] || p['lat'] || p[' latitude'];
+      let lon = p['Longitude'] || p[' Longitude'] || p['lon'] || p[' longitude'];
+      if (!lat || !lon) return null;
+      const [plat, plon] = [parseFloat(lat), parseFloat(lon)];
+      return isNaN(plat) || isNaN(plon) ? null : [plat, plon];
+    }
+
+    function matches(p) {
+      const query = document.getElementById('searchBox').value.trim().toLowerCase();
+      const wtChecks = Array.from(document.querySelectorAll('#workTypeGroup input:checked')).map(c=>c.value);
+      const dsChecks = Array.from(document.querySelectorAll('#dealStageGroup input:checked')).map(c=>c.value);
+
+      if (wtChecks.length && !wtChecks.includes(p['Work Type'])) return false;
+      if (dsChecks.length && !dsChecks.includes(p['Deal Stage'])) return false;
+      if (query && !Object.values(p).join(' ').toLowerCase().includes(query)) return false;
+      return true;
+    }
+
+    function plot() {
+      markerCluster.clearLayers();
+      const bounds = L.latLngBounds();
+      let count = 0;
+
+      for (const p of allProjects) {
+        if (!matches(p)) continue;
+        const coords = parseLatLon(p);
+        if (!coords) continue;
+
+        const color = workTypeColorMap[p['Work Type']] || 'grey';
+        const marker = L.marker(coords, { icon: makeIcon(color) });
+
+        const address = [p['Street Address'], p['City'], p['State'], p['Zip Code']].filter(Boolean).join(', ');
+        marker.bindPopup(`
+          <div style="font-size:1rem;line-height:1.5;">
+            <strong>${p['Job Name'] || 'Unnamed Project'}</strong><br>
+            ${address}<br><br>
+            <b>Work Type:</b> ${p['Work Type'] || '—'}<br>
+            <b>Deal Stage:</b> ${p['Deal Stage'] || '—'}
+          </div>`);
+
+        markerCluster.addLayer(marker);
+        bounds.extend(coords);
+        count++;
+      }
+
+      document.getElementById('resultCount').textContent =
+        count ? `${count} project${count>1?'s':''} shown` : 'No projects match';
+
+      if (count) map.fitBounds(bounds.pad(0.2));
+    }
+
+    // ==================== EXTRA UX BUTTONS ====================
+    document.getElementById('resetFilters')?.addEventListener('click', () => {
+      document.getElementById('searchBox').value = '';
+      document.querySelectorAll('#filters input[type="checkbox"]').forEach(c=>c.checked=false);
+      plot();
+    });
+
+    document.getElementById('locateMe')?.addEventListener('click', () => {
+      map.locate({ setView:true, maxZoom:12 });
+      map.once('locationfound', e => {
+        L.marker(e.latlng).addTo(map).bindPopup('You are here').openPopup();
+      });
+    });
+
+    document.getElementById('toggleFilters')?.addEventListener('click', () => {
+      document.getElementById('filters').classList.toggle('collapsed');
+    });
+
+    document.getElementById('darkMode')?.addEventListener('click', () => {
+      document.body.classList.toggle('dark');
+    });
+
+    // Dark mode basic styles
+    const darkCSS = `
+      body.dark { background:#121212; color:#eee; }
+      body.dark #filters, body.dark .project-popup { background:#1e1e1e; border-color:#444; }
+      body.dark .checkbox-label { background:#333; }
+      body.dark .checkbox-label:hover { background:#444; }
+    `;
+    const style = document.createElement('style');
+    style.textContent = darkCSS;
+    document.head.appendChild(style);
+
+    // ==================== START ====================
+    document.addEventListener('DOMContentLoaded', initMap);
+  </script>
 </body>
 </html>
-
-
-
-
