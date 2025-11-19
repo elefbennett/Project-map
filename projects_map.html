@@ -73,7 +73,7 @@
     }
 
     async function init() {
-      await new Promise(r => setTimeout(r, 100)); // ensure DOM ready
+      await new Promise(r => setTimeout(r, 100));
 
       map = L.map('map').setView([34.5, -119.5], 8);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
@@ -97,8 +97,8 @@
       document.querySelector('main').insertAdjacentHTML('beforeend', `
         <section id="filters">
           <div><h3>🔍 Search Projects</h3><input type="text" id="searchBox" placeholder="Job name, city, address..."></div>
-          <div><h3>Work Type</h3><select id="workTypeSelect" multiple placeholder="All Work Types"></select></div>
-          <div><h3>Deal Stage</h3><select id="dealStageSelect" multiple placeholder="All Deal Stages"></select></div>
+          <div><h3>Work Type</h3><select id="workTypeSelect" multiple></select></div>
+          <div><h3>Deal Stage</h3><select id="dealStageSelect" multiple></select></div>
           <div style="text-align:center"><button id="reset" class="btn" style="background:#666;color:white">Reset All</button><div id="count"></div></div>
           <div id="legend" class="legend"><strong>Legend (Work Type):</strong></div>
         </section>`);
@@ -107,6 +107,7 @@
       tomWorkType = new TomSelect('#workTypeSelect', {
         plugins: ['remove_button','dropdown_input'],
         create: false,
+        placeholder: "All Work Types",
         options: workTypes.map(t => ({value: t, text: t})),
         render: {
           option: (d,e) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0"><span style="width:14px;height:14px;border-radius:50%;background:${colorMap[d.value]||'grey'};border:1px solid #999"></span>${e(d.text)}</div>`,
@@ -114,17 +115,18 @@
         }
       });
 
-      // Deal Stage dropdown (same style, no color dots)
+      // Deal Stage dropdown - now with placeholder fixed
       tomDealStage = new TomSelect('#dealStageSelect', {
         plugins: ['remove_button','dropdown_input'],
         create: false,
+        placeholder: "All Deal Stages",
         options: dealStages.map(s => ({value: s, text: s})),
         render: {
           item: (d,e) => `<div style="background:#555;color:white;padding:6px 12px;border-radius:20px;">${e(d.text)}</div>`
         }
       });
 
-      // Legend (only Work Type has colors)
+      // Legend
       const legend = document.getElementById('legend');
       Object.entries(colorMap).forEach(([t,c]) => {
         const el = document.createElement('div');
