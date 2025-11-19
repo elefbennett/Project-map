@@ -1,102 +1,233 @@
+/* ====================== Global & Typography ====================== */
 body {
-    margin: 0;
-    font-family: 'Lato', sans-serif;
-    background-color: #f9f8f6;
-    color: #333;
-  }
-  
-  .landing {
-    background-image: url('https://source.unsplash.com/1600x900/?vineyard,luxury');
-    background-size: cover;
-    background-position: center;
-    height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  .hero {
-    text-align: center;
-    background: rgba(255,255,255,0.9);
-    padding: 40px;
-    border-radius: 12px;
-    max-width: 500px;
-  }
-  
-  .hero h1 {
-    font-family: 'Playfair Display', serif;
-    font-size: 3rem;
-  }
-  
-  .hero p {
-    font-size: 1.2rem;
-    margin-bottom: 20px;
-  }
-  
-  .btn {
-    background: black;
-    color: white;
-    padding: 12px 24px;
-    text-decoration: none;
-    border-radius: 6px;
-    font-weight: bold;
-  }
-  .header {
-    text-align: center;
-    padding: 40px 20px;
-    background: #fff;
-    border-bottom: 1px solid #ddd;
-  }
-  
-  .dashboard {
-    background-color: #f4f1ee;
-  }
-  
-  .events {
-    padding: 20px;
-  }
-  
-  .event-card {
-    background: #ffffff;
-    border-radius: 10px;
-    padding: 20px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-  }
-  
-  /* Map page custom styles */
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  background-color: #f9f8f6;
+  color: #333;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  margin: 0 0 0.5em;
+}
+
+h1 { font-size: 3.5rem; }
+h2 { font-size: 2.5rem; }
+h3 { font-size: 1.8rem; }
+
+p { margin: 0 0 1em; }
+
+/* ====================== Color Palette ====================== */
+:root {
+  --color-primary: #722f37;     /* Deep wine red */
+  --color-primary-light: #9c4a4f;
+  --color-dark: #2c1a1d;
+  --color-light: #fdfcfb;
+  --color-bg: #f9f8f6;
+  --color-surface: #ffffff;
+  --color-border: #e8e2d9;
+  --color-muted: #666;
+}
+
+/* ====================== Landing / Hero ====================== */
+.landing {
+  min-height: 100vh;
+  background: linear-gradient(rgba(0,0,0,0.25), rgba(0,0,0,0.4)),
+              url('https://source.unsplash.com/1600x900/?vineyard,luxury') center/cover no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.hero {
+  text-align: center;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 48px 40px;
+  border-radius: 16px;
+  max-width: 560px;
+  width: 90%;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.6);
+}
+
+.hero h1 {
+  font-size: 4rem;
+  color: var(--color-primary);
+  margin-bottom: 0.2em;
+}
+
+.hero p {
+  font-size: 1.25rem;
+  color: var(--color-muted);
+  max-width: 420px;
+  margin: 0 auto 2rem;
+}
+
+/* ====================== Buttons ====================== */
+.btn {
+  display: inline-block;
+  background: var(--color-primary);
+  color: white;
+  padding: 14px 32px;
+  border-radius: 50px;
+  text-decoration: none;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(114, 47, 55, 0.3);
+}
+
+.btn:hover {
+  background: var(--color-primary-light);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(114, 47, 55, 0.4);
+}
+
+.btn:active {
+  transform: translateY(-1px);
+}
+
+/* ====================== Header ====================== */
+.header {
+  text-align: center;
+  padding: 60px 20px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.header h2 {
+  color: var(--color-primary);
+}
+
+/* ====================== Dashboard & Events ====================== */
+.dashboard {
+  background-color: #f4f1ee;
+  padding: 40px 20px;
+  min-height: 100vh;
+}
+
+.events {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  gap: 28px;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+}
+
+.event-card {
+  background: var(--color-surface);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.event-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+}
+
+.event-card img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+}
+
+.event-card .content {
+  padding: 24px;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.event-card h3 {
+  color: var(--color-primary);
+  margin-bottom: 0.5em;
+}
+
+.event-card .date {
+  font-size: 0.9rem;
+  color: var(--color-muted);
+  margin-bottom: 1em;
+}
+
+.event-card .btn {
+  margin-top: auto;
+  text-align: center;
+}
+
+/* ====================== Map Page ====================== */
 #map {
   height: 80vh;
   width: 100%;
-  margin: 0 auto;
-  border-radius: 12px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+  border: 1px solid var(--color-border);
 }
+
 .project-popup {
   font-size: 1rem;
+  line-height: 1.5;
 }
+
+/* ====================== Filters ====================== */
 #filters {
+  max-width: 1200px;
+  margin: 30px auto;
+  padding: 20px;
+  background: var(--color-surface);
+  border-radius: 16px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.08);
   display: flex;
-  gap: 20px;
-  align-items: center;
-  margin-bottom: 20px;
   flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  justify-content: center;
 }
+
 #filters label {
-  font-weight: bold;
-  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-dark);
 }
-#filters select, #filters button {
+
+#filters select,
+#filters input[type="date"] {
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
   font-size: 1rem;
-  padding: 4px 8px;
-  border-radius: 4px;
-  border: 1px solid #ccc;
+  background: white;
+  min-width: 180px;
 }
+
 #filters button {
-  background: #333;
-  color: #fff;
+  background: var(--color-primary);
+  color: white;
   border: none;
+  padding: 12px 28px;
+  border-radius: 50px;
+  font-weight: 600;
   cursor: pointer;
+  transition: all 0.3s ease;
 }
+
 #filters button:hover {
-  background: #555;
+  background: var(--color-primary-light);
+  transform: translateY(-2px);
+}
+
+/* ====================== Responsive ====================== */
+@media (max-width: 768px) {
+  .hero h1 { font-size: 3rem; }
+  .hero { padding: 36px 24px; }
+  #filters { padding: 16px; justify-content: stretch; }
+  #filters > * { flex: 1; min-width: 140px; }
 }
