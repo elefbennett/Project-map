@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DRS Projects Map - Troubleshooting Version</title>
+  <title>DRS Projects Map - Fixed Columns</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
@@ -18,34 +18,26 @@
     #loading { position:absolute; inset:0; background:rgba(255,255,255,0.95); z-index:999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; font-size:1.4rem; }
     .spinner { width:56px; height:56px; border:6px solid #f3f3f3; border-top:6px solid var(--primary); border-radius:50%; animation:s 1s linear infinite; }
     @keyframes s { to { transform:rotate(360deg); } }
-
     #topControls { position:absolute; top:16px; left:16px; z-index:1000; display:flex; gap:12px; flex-wrap:wrap; }
     .btn { background:rgba(255,255,255,0.95); padding:12px 20px; border:none; border-radius:50px; box-shadow:0 4px 15px rgba(0,0,0,0.2); font-weight:600; cursor:pointer; }
-
-    #filters { margin:30px auto; padding:32px; background:var(--surface); border-radius:16px; box-shadow:0 8px 25px rgba(0,0,0,0.08); border:1px solid var(--border); display:grid; gap:28px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); transition:transform .4s; }
+    #filters { margin:30px auto; padding:32px; background:var(--surface); border-radius:16px; box-shadow:0 8px 25px rgba(0,0,0,0.08); border:1px solid var(--border); display:grid; gap:28px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); }
     #filters.collapsed { display: none; }
     #filters h3 { margin:0 0 12px; color:var(--primary); font-size:1.5rem; }
-
     #searchBox { padding:14px 16px; border:1px solid var(--border); border-radius:12px; font-size:1.1rem; width:100%; box-sizing:border-box; }
-    .ts-control { padding:14px 16px !important; border:1px solid var(--border) !important; border-radius:12px !important; background:white !important; min-height:56px; font-size:1.1rem; }
-    
+    .ts-control { padding:14px 16px !important; border:1px solid var(--border) !important; border-radius:12px !important; }
     .legend { grid-column:1/-1; display:flex; flex-wrap:wrap; gap:16px; justify-content:center; padding-top:12px; border-top:1px solid var(--border); }
-    .legend-item { display:flex; align-items:center; gap:10px; cursor:pointer; padding:6px 12px; border-radius:8px; transition:background .2s; }
-    .legend-item:hover { background:#f5f0eb; }
+    .legend-item { display:flex; align-items:center; gap:10px; cursor:pointer; padding:6px 12px; border-radius:8px; }
     .legend-item .swatch { width:16px; height:16px; border-radius:50%; border:2px solid #999; }
-
     #count { text-align:center; font-weight:600; font-size:1.2rem; color:var(--primary); margin-top: 10px; }
-
     body.dark { background:#121212 !important; color:#eee !important; }
-    body.dark #filters { background:#1e1e1e !important; border-color:#444 !important; }
-    body.dark .ts-control, body.dark #searchBox { background:#333 !important; color:#eee !important; border-color:#555 !important; }
+    body.dark #filters { background:#1e1e1e !important; }
   </style>
 </head>
 <body>
 
   <main>
     <div id="map">
-      <div id="loading"><div class="spinner"></div><div>Loading Map Projects...</div></div>
+      <div id="loading"><div class="spinner"></div><div>Updating Project Data...</div></div>
     </div>
   </main>
 
@@ -56,44 +48,39 @@
   <script>
     // --- 1. CONFIGURATION ---
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTB_eYjbWk8gM-dAyY2gNFiJ4k60S3DRpF0AyMIe-8J2FyqiquIyraVjv9yHZ4tuMywAjkqRHV9V5BD/pub?output=csv";
+    
+    // Checkbox Target Stages
+    const TARGET_STAGES = ["4.3 - Closed - Project", "3.3 - Submitted", "3.4 - Permitted", "3.5 - In Construction"];
     const COLORS = ['red', 'blue', 'green', 'orange', 'yellow', 'violet', 'grey', 'black'];
-    const TARGET_STAGES = [
-      "4.3 - Closed - Project", 
-      "3.3 - Submitted", 
-      "3.4 - Permitted", 
-      "3.5 - In Construction"
-    ];
 
-    let map, cluster, projects = [], tomWorkType = null, tomDealStage = null;
+    let map, cluster, projects = [], tomWorkType, tomDealStage;
     const colorMap = {};
 
-    // --- 2. DATA UTILITIES ---
+    // --- 2. THE FIX: ROBUST PARSING ---
     function parseCSV(text) {
-      const lines = text.split(/\r?\n/).filter(line => line.trim() !== "");
-      if (lines.length < 2) return [];
-
-      const splitRow = (row) => {
+      // Improved CSV split that respects quotes (prevents column shifting)
+      const rows = text.split(/\r?\n/).filter(r => r.trim());
+      const data = rows.map(row => {
         const result = [];
-        let cur = '', inQuote = false;
+        let cell = '', inQuotes = false;
         for (let char of row) {
-          if (char === '"') inQuote = !inQuote;
-          else if (char === ',' && !inQuote) { result.push(cur.trim()); cur = ''; }
-          else cur += char;
+          if (char === '"') inQuotes = !inQuotes;
+          else if (char === ',' && !inQuotes) { result.push(cell.trim()); cell = ''; }
+          else cell += char;
         }
-        result.push(cur.trim());
+        result.push(cell.trim());
         return result;
-      };
+      });
 
-      // Create normalized keys (lowercase, no spaces) to make column matching robust
-      const headers = splitRow(lines[0]).map(h => h.toLowerCase().replace(/\s+/g, ''));
-      console.log("Map Debug - Headers Found:", headers);
+      const headers = data[0];
+      console.log("Raw Headers detected:", headers);
 
-      return lines.slice(1).map(line => {
-        const values = splitRow(line);
-        const obj = {};
+      return data.slice(1).map(row => {
+        let obj = {};
         headers.forEach((h, i) => {
-          let val = values[i] || '';
-          obj[h] = val.replace(/^"|"$/g, '');
+          // Normalize header name to lowercase and remove spaces
+          const key = h.toLowerCase().replace(/\s+/g, '');
+          obj[key] = (row[i] || '').replace(/^"|"$/g, '');
         });
         return obj;
       });
@@ -101,168 +88,116 @@
 
     async function loadData() {
       try {
-        const response = await fetch(CSV_URL);
-        if (!response.ok) throw new Error("Could not fetch CSV. Check your Google Sheets 'Publish to Web' settings.");
-        const text = await response.text();
+        const r = await fetch(CSV_URL);
+        const text = await r.text();
         projects = parseCSV(text);
-        console.log("Map Debug - Project Count:", projects.length);
-      } catch (err) {
-        console.error("Critical Error:", err);
-        document.getElementById('loading').innerHTML = `<div style="color:red">Error: ${err.message}</div>`;
+        
+        // DEBUG: Check the first project to see what keys were created
+        if(projects.length > 0) console.log("Example Project Data:", projects[0]);
+      } catch (e) {
+        console.error("Load failed", e);
       }
     }
 
-    // --- 3. UI & INITIALIZATION ---
+    // --- 3. UI INITIALIZATION ---
     async function init() {
-      // Setup Map
       map = L.map('map').setView([34.5, -119.5], 7);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
-        attribution: '&copy; OpenStreetMap' 
-      }).addTo(map);
-
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(map);
       cluster = L.markerClusterGroup();
       map.addLayer(cluster);
 
-      // Fetch Data
       await loadData();
-      if (projects.length === 0) return;
 
-      // Inject UI Elements
-      document.getElementById('map').insertAdjacentHTML('beforeend', `
-        <div id="topControls">
-          <button class="btn" id="toggle">⚙️ Filters</button>
-          <button class="btn" id="near">📍 Near Me</button>
-          <button class="btn" id="dark">🌙 Dark</button>
-        </div>`);
-
+      // UI INJECTION
+      document.getElementById('map').insertAdjacentHTML('beforeend', `<div id="topControls"><button class="btn" id="toggle">⚙️ Filters</button><button class="btn" id="near">📍 Near Me</button><button class="btn" id="dark">🌙 Dark</button></div>`);
       document.querySelector('main').insertAdjacentHTML('beforeend', `
         <section id="filters">
           <div>
-            <h3>🔍 Search Projects</h3>
-            <input type="text" id="searchBox" placeholder="Job name, city, address...">
-            <div style="margin-top:20px; padding:15px; background:#ebf8ff; border-radius:12px; border:1px solid #bee3f8;">
-               <label style="display:flex; align-items:center; cursor:pointer; font-weight:bold; color:#2b6cb0;">
-                 <input type="checkbox" id="activeStagesOnly" checked style="width:20px; height:20px; margin-right:10px;">
-                 Show Key Project Stages Only
-               </label>
+            <h3>🔍 Search</h3>
+            <input type="text" id="searchBox" placeholder="Search anything...">
+            <div style="margin-top:15px; padding:10px; background:#eef; border-radius:8px;">
+               <label><input type="checkbox" id="activeStagesOnly" checked> Show Key Project Stages Only</label>
             </div>
           </div>
           <div><h3>Work Type</h3><select id="workTypeSelect" multiple></select></div>
           <div><h3>Deal Stage</h3><select id="dealStageSelect" multiple></select></div>
-          <div style="text-align:center">
-            <button id="reset" class="btn" style="background:#666;color:white">Reset All</button>
-            <div id="count"></div>
-          </div>
-          <div id="legend" class="legend"><strong>Legend:</strong></div>
+          <div style="text-align:center"><button id="reset" class="btn">Reset</button><div id="count"></div></div>
+          <div id="legend" class="legend"></div>
         </section>`);
 
-      // Setup Selects (using normalized keys: worktype, dealstage)
+      // Extract unique values (using normalized keys)
+      // Note: If "Deal Stage" column shifted, we check for 'dealstage' key
       const workTypes = [...new Set(projects.map(p => p.worktype).filter(Boolean))].sort();
       const dealStages = [...new Set(projects.map(p => p.dealstage).filter(Boolean))].sort();
       
       workTypes.forEach((t, i) => colorMap[t] = COLORS[i % COLORS.length]);
 
-      tomWorkType = new TomSelect('#workTypeSelect', {
-        options: workTypes.map(t => ({value: t, text: t})),
-        plugins: ['remove_button']
-      });
+      tomWorkType = new TomSelect('#workTypeSelect', { options: workTypes.map(t => ({value:t, text:t})), plugins:['remove_button'] });
+      tomDealStage = new TomSelect('#dealStageSelect', { options: dealStages.map(s => ({value:s, text:s})), plugins:['remove_button'] });
 
-      tomDealStage = new TomSelect('#dealStageSelect', {
-        options: dealStages.map(s => ({value: s, text: s})),
-        plugins: ['remove_button']
-      });
-
-      // Legend
       const legend = document.getElementById('legend');
-      Object.entries(colorMap).forEach(([type, color]) => {
-        const item = document.createElement('div');
-        item.className = 'legend-item';
-        item.innerHTML = `<span class="swatch" style="background:${color}"></span>${type}`;
-        item.onclick = () => tomWorkType.addItem(type);
-        legend.appendChild(item);
+      Object.entries(colorMap).forEach(([t, c]) => {
+        legend.innerHTML += `<div class="legend-item" onclick="tomWorkType.addItem('${t}')"><span class="swatch" style="background:${c}"></span>${t}</div>`;
       });
 
-      // Cleanup Loading Screen
       document.getElementById('loading').remove();
-
-      // Listeners
+      
+      // Events
       const update = () => plot();
       document.getElementById('searchBox').addEventListener('input', update);
       document.getElementById('activeStagesOnly').addEventListener('change', update);
       tomWorkType.on('change', update);
       tomDealStage.on('change', update);
-      
       document.getElementById('toggle').onclick = () => document.getElementById('filters').classList.toggle('collapsed');
       document.getElementById('dark').onclick = () => document.body.classList.toggle('dark');
       document.getElementById('near').onclick = () => map.locate({setView:true, maxZoom:12});
-      document.getElementById('reset').onclick = () => {
-        document.getElementById('searchBox').value = '';
-        document.getElementById('activeStagesOnly').checked = true;
-        tomWorkType.clear();
-        tomDealStage.clear();
-        plot();
-      };
+      document.getElementById('reset').onclick = () => { location.reload(); };
 
       plot();
     }
 
-    // --- 4. CORE PLOTTING LOGIC ---
     function plot() {
       cluster.clearLayers();
       const bounds = L.latLngBounds();
       let count = 0;
 
-      const q = (document.getElementById('searchBox').value || '').toLowerCase();
-      const selWork = tomWorkType ? tomWorkType.items : [];
-      const selStage = tomDealStage ? tomDealStage.items : [];
+      const search = (document.getElementById('searchBox').value || '').toLowerCase();
+      const selWork = tomWorkType.items;
+      const selStage = tomDealStage.items;
       const activeOnly = document.getElementById('activeStagesOnly').checked;
 
       projects.forEach(p => {
-        // Apply Filters (normalized keys)
+        // Filter logic using normalized keys
         if (activeOnly && !TARGET_STAGES.includes(p.dealstage)) return;
         if (selWork.length && !selWork.includes(p.worktype)) return;
         if (selStage.length && !selStage.includes(p.dealstage)) return;
-        if (q && !Object.values(p).join(' ').toLowerCase().includes(q)) return;
+        if (search && !Object.values(p).join(' ').toLowerCase().includes(search)) return;
 
-        // Parse Coordinates (normalized keys)
         const lat = parseFloat(p.latitude);
         const lon = parseFloat(p.longitude);
         if (isNaN(lat) || isNaN(lon)) return;
 
-        // Custom Icon
-        const markerColor = colorMap[p.worktype] || 'grey';
         const icon = L.icon({
-          iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${markerColor}.png`,
+          iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${colorMap[p.worktype] || 'grey'}.png`,
           shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
           iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
         });
 
-        // Assemble Popup Info
-        const jobNo = p.jobnumber || '—';
-        const name = p.jobname || 'Unnamed Project';
-        const addr = [p.streetaddress, p.city, p.state].filter(Boolean).join(', ');
+        const popup = `<strong>#${p.jobnumber || '—'} ${p.jobname || 'Project'}</strong><br>
+                       ${p.streetaddress || ''}, ${p.city || ''}<br><br>
+                       <b>Type:</b> ${p.worktype}<br><b>Stage:</b> ${p.dealstage}`;
 
-        const m = L.marker([lat, lon], {icon}).bindPopup(`
-          <div style="font-family:sans-serif; min-width:180px;">
-            <strong style="color:var(--primary); font-size:1.1rem;">#${jobNo}</strong><br>
-            <strong>${name}</strong><br>
-            <small>${addr}</small><br><hr>
-            <b>Stage:</b> ${p.dealstage || '—'}<br>
-            <b>Type:</b> ${p.worktype || '—'}
-          </div>
-        `);
-
+        const m = L.marker([lat, lon], {icon}).bindPopup(popup);
         cluster.addLayer(m);
         bounds.extend([lat, lon]);
         count++;
       });
 
-      document.getElementById('count').textContent = `${count} project(s) visible`;
+      document.getElementById('count').textContent = `${count} Projects`;
       if (count > 0) map.fitBounds(bounds.pad(0.1));
     }
 
-    // Run when window loads
-    window.addEventListener('load', init);
+    window.onload = init;
   </script>
 </body>
 </html>
