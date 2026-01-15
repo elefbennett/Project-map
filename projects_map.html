@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DRS Projects Map</title>
+  <title>DRS Projects Map - Troubleshooting Version</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
@@ -28,7 +28,6 @@
 
     #searchBox { padding:14px 16px; border:1px solid var(--border); border-radius:12px; font-size:1.1rem; width:100%; box-sizing:border-box; }
     .ts-control { padding:14px 16px !important; border:1px solid var(--border) !important; border-radius:12px !important; background:white !important; min-height:56px; font-size:1.1rem; }
-    .ts-dropdown { border-radius:12px !important; box-shadow:0 10px 30px rgba(0,0,0,0.12) !important; margin-top:8px; }
     
     .legend { grid-column:1/-1; display:flex; flex-wrap:wrap; gap:16px; justify-content:center; padding-top:12px; border-top:1px solid var(--border); }
     .legend-item { display:flex; align-items:center; gap:10px; cursor:pointer; padding:6px 12px; border-radius:8px; transition:background .2s; }
@@ -43,9 +42,10 @@
   </style>
 </head>
 <body>
+
   <main>
     <div id="map">
-      <div id="loading"><div class="spinner"></div><div>Loading your projects...</div></div>
+      <div id="loading"><div class="spinner"></div><div>Loading Map Projects...</div></div>
     </div>
   </main>
 
@@ -54,11 +54,9 @@
   <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 
   <script>
-    // --- Configuration ---
+    // --- 1. CONFIGURATION ---
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTB_eYjbWk8gM-dAyY2gNFiJ4k60S3DRpF0AyMIe-8J2FyqiquIyraVjv9yHZ4tuMywAjkqRHV9V5BD/pub?output=csv";
-    const COLORS = ['red','blue','green','orange','yellow','violet','grey','black'];
-    
-    // The specific Deal Stages for your checkbox
+    const COLORS = ['red', 'blue', 'green', 'orange', 'yellow', 'violet', 'grey', 'black'];
     const TARGET_STAGES = [
       "4.3 - Closed - Project", 
       "3.3 - Submitted", 
@@ -66,37 +64,58 @@
       "3.5 - In Construction"
     ];
 
-    const colorMap = {};
     let map, cluster, projects = [], tomWorkType = null, tomDealStage = null;
+    const colorMap = {};
 
-    // --- Data Loading ---
+    // --- 2. DATA UTILITIES ---
+    function parseCSV(text) {
+      const lines = text.split(/\r?\n/).filter(line => line.trim() !== "");
+      if (lines.length < 2) return [];
+
+      const splitRow = (row) => {
+        const result = [];
+        let cur = '', inQuote = false;
+        for (let char of row) {
+          if (char === '"') inQuote = !inQuote;
+          else if (char === ',' && !inQuote) { result.push(cur.trim()); cur = ''; }
+          else cur += char;
+        }
+        result.push(cur.trim());
+        return result;
+      };
+
+      // Create normalized keys (lowercase, no spaces) to make column matching robust
+      const headers = splitRow(lines[0]).map(h => h.toLowerCase().replace(/\s+/g, ''));
+      console.log("Map Debug - Headers Found:", headers);
+
+      return lines.slice(1).map(line => {
+        const values = splitRow(line);
+        const obj = {};
+        headers.forEach((h, i) => {
+          let val = values[i] || '';
+          obj[h] = val.replace(/^"|"$/g, '');
+        });
+        return obj;
+      });
+    }
+
     async function loadData() {
       try {
-        const r = await fetch(CSV_URL);
-        const text = await r.text();
-        const lines = text.trim().split('\n');
-        const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-        
-        projects = lines.slice(1).map(line => {
-          // Handle commas within quotes for CSV parsing
-          const vals = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(',');
-          const o = {};
-          headers.forEach((h,i) => {
-            let val = vals[i] || '';
-            o[h] = val.trim().replace(/^"|"$/g, '');
-          });
-          return o;
-        });
+        const response = await fetch(CSV_URL);
+        if (!response.ok) throw new Error("Could not fetch CSV. Check your Google Sheets 'Publish to Web' settings.");
+        const text = await response.text();
+        projects = parseCSV(text);
+        console.log("Map Debug - Project Count:", projects.length);
       } catch (err) {
-        console.error("Failed to load CSV:", err);
+        console.error("Critical Error:", err);
+        document.getElementById('loading').innerHTML = `<div style="color:red">Error: ${err.message}</div>`;
       }
     }
 
-    // --- Map & UI Initialization ---
+    // --- 3. UI & INITIALIZATION ---
     async function init() {
-      await new Promise(r => setTimeout(r, 100));
-
-      map = L.map('map').setView([34.5, -119.5], 8);
+      // Setup Map
+      map = L.map('map').setView([34.5, -119.5], 7);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
         attribution: '&copy; OpenStreetMap' 
       }).addTo(map);
@@ -104,7 +123,11 @@
       cluster = L.markerClusterGroup();
       map.addLayer(cluster);
 
-      // Add Top Controls
+      // Fetch Data
+      await loadData();
+      if (projects.length === 0) return;
+
+      // Inject UI Elements
       document.getElementById('map').insertAdjacentHTML('beforeend', `
         <div id="topControls">
           <button class="btn" id="toggle">⚙️ Filters</button>
@@ -112,83 +135,66 @@
           <button class="btn" id="dark">🌙 Dark</button>
         </div>`);
 
-      await loadData();
-
-      const workTypes = [...new Set(projects.map(p => p['Work Type']).filter(Boolean))].sort();
-      const dealStages = [...new Set(projects.map(p => p['Deal Stage']).filter(Boolean))].sort();
-
-      workTypes.forEach((t,i) => colorMap[t] = COLORS[i % COLORS.length]);
-
-      // Inject Filter UI
       document.querySelector('main').insertAdjacentHTML('beforeend', `
         <section id="filters">
           <div>
             <h3>🔍 Search Projects</h3>
             <input type="text" id="searchBox" placeholder="Job name, city, address...">
-            
             <div style="margin-top:20px; padding:15px; background:#ebf8ff; border-radius:12px; border:1px solid #bee3f8;">
                <label style="display:flex; align-items:center; cursor:pointer; font-weight:bold; color:#2b6cb0;">
                  <input type="checkbox" id="activeStagesOnly" checked style="width:20px; height:20px; margin-right:10px;">
                  Show Key Project Stages Only
                </label>
-               <small style="display:block; margin-left:30px; color:#4a5568; margin-top:5px;">
-                 Includes: 3.3, 3.4, 3.5, and 4.3
-               </small>
             </div>
           </div>
-
           <div><h3>Work Type</h3><select id="workTypeSelect" multiple></select></div>
           <div><h3>Deal Stage</h3><select id="dealStageSelect" multiple></select></div>
-
           <div style="text-align:center">
             <button id="reset" class="btn" style="background:#666;color:white">Reset All</button>
             <div id="count"></div>
           </div>
-
-          <div id="legend" class="legend"><strong>Legend (Work Type):</strong></div>
+          <div id="legend" class="legend"><strong>Legend:</strong></div>
         </section>`);
 
-      // Initialize TomSelect for Work Type
+      // Setup Selects (using normalized keys: worktype, dealstage)
+      const workTypes = [...new Set(projects.map(p => p.worktype).filter(Boolean))].sort();
+      const dealStages = [...new Set(projects.map(p => p.dealstage).filter(Boolean))].sort();
+      
+      workTypes.forEach((t, i) => colorMap[t] = COLORS[i % COLORS.length]);
+
       tomWorkType = new TomSelect('#workTypeSelect', {
-        plugins: ['remove_button','dropdown_input'],
-        placeholder: "All Work Types",
         options: workTypes.map(t => ({value: t, text: t})),
-        render: {
-          option: (d,e) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0"><span style="width:14px;height:14px;border-radius:50%;background:${colorMap[d.value]||'grey'};border:1px solid #999"></span>${e(d.text)}</div>`,
-          item: (d,e) => `<div style="background:#722f37;color:white;padding:6px 12px;border-radius:20px;display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:50%;background:${colorMap[d.value]||'grey'}"></span>${e(d.text)}</div>`
-        }
+        plugins: ['remove_button']
       });
 
-      // Initialize TomSelect for Deal Stage
       tomDealStage = new TomSelect('#dealStageSelect', {
-        plugins: ['remove_button','dropdown_input'],
-        placeholder: "All Deal Stages",
         options: dealStages.map(s => ({value: s, text: s})),
-        render: {
-          item: (d,e) => `<div style="background:#555;color:white;padding:6px 12px;border-radius:20px;">${e(d.text)}</div>`
-        }
+        plugins: ['remove_button']
       });
 
-      // Build Legend
+      // Legend
       const legend = document.getElementById('legend');
-      Object.entries(colorMap).forEach(([t,c]) => {
-        const el = document.createElement('div');
-        el.className = 'legend-item';
-        el.innerHTML = `<span class="swatch" style="background:${c}"></span>${t}`;
-        el.onclick = () => tomWorkType.addItem(t);
-        legend.appendChild(el);
+      Object.entries(colorMap).forEach(([type, color]) => {
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        item.innerHTML = `<span class="swatch" style="background:${color}"></span>${type}`;
+        item.onclick = () => tomWorkType.addItem(type);
+        legend.appendChild(item);
       });
 
+      // Cleanup Loading Screen
       document.getElementById('loading').remove();
-      plot();
 
-      // Event Listeners
-      const livePlot = () => setTimeout(plot, 100);
-      document.getElementById('searchBox').addEventListener('input', livePlot);
-      document.getElementById('activeStagesOnly').addEventListener('change', plot);
-      tomWorkType.on('change', plot);
-      tomDealStage.on('change', plot);
-
+      // Listeners
+      const update = () => plot();
+      document.getElementById('searchBox').addEventListener('input', update);
+      document.getElementById('activeStagesOnly').addEventListener('change', update);
+      tomWorkType.on('change', update);
+      tomDealStage.on('change', update);
+      
+      document.getElementById('toggle').onclick = () => document.getElementById('filters').classList.toggle('collapsed');
+      document.getElementById('dark').onclick = () => document.body.classList.toggle('dark');
+      document.getElementById('near').onclick = () => map.locate({setView:true, maxZoom:12});
       document.getElementById('reset').onclick = () => {
         document.getElementById('searchBox').value = '';
         document.getElementById('activeStagesOnly').checked = true;
@@ -197,12 +203,10 @@
         plot();
       };
 
-      document.getElementById('near').onclick = () => map.locate({setView:true, maxZoom:12});
-      document.getElementById('toggle').onclick = () => document.getElementById('filters').classList.toggle('collapsed');
-      document.getElementById('dark').onclick = () => document.body.classList.toggle('dark');
+      plot();
     }
 
-    // --- Filter and Plot Logic ---
+    // --- 4. CORE PLOTTING LOGIC ---
     function plot() {
       cluster.clearLayers();
       const bounds = L.latLngBounds();
@@ -211,56 +215,54 @@
       const q = (document.getElementById('searchBox').value || '').toLowerCase();
       const selWork = tomWorkType ? tomWorkType.items : [];
       const selStage = tomDealStage ? tomDealStage.items : [];
-      const activeStagesOnly = document.getElementById('activeStagesOnly').checked;
+      const activeOnly = document.getElementById('activeStagesOnly').checked;
 
-      for (const p of projects) {
-        // 1. Checkbox Filter (Active Stages Only)
-        if (activeStagesOnly && !TARGET_STAGES.includes(p['Deal Stage'])) continue;
+      projects.forEach(p => {
+        // Apply Filters (normalized keys)
+        if (activeOnly && !TARGET_STAGES.includes(p.dealstage)) return;
+        if (selWork.length && !selWork.includes(p.worktype)) return;
+        if (selStage.length && !selStage.includes(p.dealstage)) return;
+        if (q && !Object.values(p).join(' ').toLowerCase().includes(q)) return;
 
-        // 2. Dropdown Filters
-        if (selWork.length && !selWork.includes(p['Work Type'])) continue;
-        if (selStage.length && !selStage.includes(p['Deal Stage'])) continue;
+        // Parse Coordinates (normalized keys)
+        const lat = parseFloat(p.latitude);
+        const lon = parseFloat(p.longitude);
+        if (isNaN(lat) || isNaN(lon)) return;
 
-        // 3. Global Search Filter
-        if (q && !Object.values(p).join(' ').toLowerCase().includes(q)) continue;
-
-        const lat = parseFloat(p.Latitude || p.latitude);
-        const lon = parseFloat(p.Longitude || p.longitude);
-        if (isNaN(lat) || isNaN(lon)) continue;
-
+        // Custom Icon
+        const markerColor = colorMap[p.worktype] || 'grey';
         const icon = L.icon({
-          iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${colorMap[p['Work Type']] || 'grey'}.png`,
+          iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${markerColor}.png`,
           shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-          iconSize: [25,41], iconAnchor: [12,41], popupAnchor: [1,-34], shadowSize: [41,41]
+          iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
         });
 
-        // Job Number Formatting
-        const year = (p['Year'] || '').trim();
-        const jobNum = (p['Job Number'] || '').trim();
-        const projectNumber = year && jobNum ? `${year}-${jobNum.padStart(3, '0')}` : '—';
-        const addr = [p['Street Address'], p.City, p.State, p['Zip Code']].filter(Boolean).join(', ');
+        // Assemble Popup Info
+        const jobNo = p.jobnumber || '—';
+        const name = p.jobname || 'Unnamed Project';
+        const addr = [p.streetaddress, p.city, p.state].filter(Boolean).join(', ');
 
-        const m = L.marker([lat,lon], {icon});
-        m.bindPopup(`
-          <div style="font-family: sans-serif; min-width: 200px;">
-            <strong style="font-size:1.3rem; color:#722f37;">${projectNumber}</strong><br>
-            <strong style="font-size:1.1rem;">${p['Job Name'] || 'Unnamed Project'}</strong><br>
-            <span style="color:#666;">${addr}</span><br><br>
-            <b>Work Type:</b> ${p['Work Type'] || '—'}<br>
-            <b>Deal Stage:</b> ${p['Deal Stage'] || '—'}
-          </div>`);
-          
+        const m = L.marker([lat, lon], {icon}).bindPopup(`
+          <div style="font-family:sans-serif; min-width:180px;">
+            <strong style="color:var(--primary); font-size:1.1rem;">#${jobNo}</strong><br>
+            <strong>${name}</strong><br>
+            <small>${addr}</small><br><hr>
+            <b>Stage:</b> ${p.dealstage || '—'}<br>
+            <b>Type:</b> ${p.worktype || '—'}
+          </div>
+        `);
+
         cluster.addLayer(m);
-        bounds.extend([lat,lon]);
+        bounds.extend([lat, lon]);
         count++;
-      }
+      });
 
-      document.getElementById('count').textContent = count ? `${count} project${count>1?'s':''} shown` : 'No projects match';
-      if (count > 0) map.fitBounds(bounds.pad(0.2));
+      document.getElementById('count').textContent = `${count} project(s) visible`;
+      if (count > 0) map.fitBounds(bounds.pad(0.1));
     }
 
-    // Run Init on window load
-    window.addEventListener('load', () => setTimeout(init, 100));
+    // Run when window loads
+    window.addEventListener('load', init);
   </script>
 </body>
 </html>
