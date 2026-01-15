@@ -13,8 +13,8 @@
   <style>
     :root { --primary: #722f37; --border: #e8e2d9; --bg: #f9f8f6; --surface: #fff; }
     body { margin:0; font-family:'Lato',sans-serif; background:var(--bg); padding:20px 0; }
-    main { max-width:1400px; margin:0 auto; }
-    #map { height:80vh; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,0.12); position:relative; border:1px solid var(--border); }
+    main { max-width:1400px; margin:0 auto; padding: 0 20px; }
+    #map { height:75vh; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,0.12); position:relative; border:1px solid var(--border); }
     #loading { position:absolute; inset:0; background:rgba(255,255,255,0.95); z-index:999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; font-size:1.4rem; }
     .spinner { width:56px; height:56px; border:6px solid #f3f3f3; border-top:6px solid var(--primary); border-radius:50%; animation:s 1s linear infinite; }
     @keyframes s { to { transform:rotate(360deg); } }
@@ -23,20 +23,19 @@
     .btn { background:rgba(255,255,255,0.95); padding:12px 20px; border:none; border-radius:50px; box-shadow:0 4px 15px rgba(0,0,0,0.2); font-weight:600; cursor:pointer; }
 
     #filters { margin:30px auto; padding:32px; background:var(--surface); border-radius:16px; box-shadow:0 8px 25px rgba(0,0,0,0.08); border:1px solid var(--border); display:grid; gap:28px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); transition:transform .4s; }
-    #filters.collapsed { transform:translateY(-110%); }
+    #filters.collapsed { display: none; }
     #filters h3 { margin:0 0 12px; color:var(--primary); font-size:1.5rem; }
 
     #searchBox { padding:14px 16px; border:1px solid var(--border); border-radius:12px; font-size:1.1rem; width:100%; box-sizing:border-box; }
     .ts-control { padding:14px 16px !important; border:1px solid var(--border) !important; border-radius:12px !important; background:white !important; min-height:56px; font-size:1.1rem; }
     .ts-dropdown { border-radius:12px !important; box-shadow:0 10px 30px rgba(0,0,0,0.12) !important; margin-top:8px; }
-    .item { background:var(--primary) !important; color:white !important; border-radius:20px !important; padding:6px 12px !important; }
-
+    
     .legend { grid-column:1/-1; display:flex; flex-wrap:wrap; gap:16px; justify-content:center; padding-top:12px; border-top:1px solid var(--border); }
     .legend-item { display:flex; align-items:center; gap:10px; cursor:pointer; padding:6px 12px; border-radius:8px; transition:background .2s; }
     .legend-item:hover { background:#f5f0eb; }
     .legend-item .swatch { width:16px; height:16px; border-radius:50%; border:2px solid #999; }
 
-    #count { text-align:center; font-weight:600; font-size:1.2rem; color:var(--primary); }
+    #count { text-align:center; font-weight:600; font-size:1.2rem; color:var(--primary); margin-top: 10px; }
 
     body.dark { background:#121212 !important; color:#eee !important; }
     body.dark #filters { background:#1e1e1e !important; border-color:#444 !important; }
@@ -55,33 +54,57 @@
   <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 
   <script>
+    // --- Configuration ---
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTB_eYjbWk8gM-dAyY2gNFiJ4k60S3DRpF0AyMIe-8J2FyqiquIyraVjv9yHZ4tuMywAjkqRHV9V5BD/pub?output=csv";
     const COLORS = ['red','blue','green','orange','yellow','violet','grey','black'];
+    
+    // The specific Deal Stages for your checkbox
+    const TARGET_STAGES = [
+      "4.3 - Closed - Project", 
+      "3.3 - Submitted", 
+      "3.4 - Permitted", 
+      "3.5 - In Construction"
+    ];
+
     const colorMap = {};
     let map, cluster, projects = [], tomWorkType = null, tomDealStage = null;
 
+    // --- Data Loading ---
     async function loadData() {
-      const r = await fetch(CSV_URL);
-      const text = await r.text();
-      const lines = text.trim().split('\n');
-      const headers = lines[0].split(',').map(h => h.trim());
-      projects = lines.slice(1).map(line => {
-        const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-        const o = {};
-        headers.forEach((h,i) => o[h] = vals[i] || '');
-        return o;
-      });
+      try {
+        const r = await fetch(CSV_URL);
+        const text = await r.text();
+        const lines = text.trim().split('\n');
+        const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+        
+        projects = lines.slice(1).map(line => {
+          // Handle commas within quotes for CSV parsing
+          const vals = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(',');
+          const o = {};
+          headers.forEach((h,i) => {
+            let val = vals[i] || '';
+            o[h] = val.trim().replace(/^"|"$/g, '');
+          });
+          return o;
+        });
+      } catch (err) {
+        console.error("Failed to load CSV:", err);
+      }
     }
 
+    // --- Map & UI Initialization ---
     async function init() {
       await new Promise(r => setTimeout(r, 100));
 
       map = L.map('map').setView([34.5, -119.5], 8);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+        attribution: '&copy; OpenStreetMap' 
+      }).addTo(map);
 
       cluster = L.markerClusterGroup();
       map.addLayer(cluster);
 
+      // Add Top Controls
       document.getElementById('map').insertAdjacentHTML('beforeend', `
         <div id="topControls">
           <button class="btn" id="toggle">⚙️ Filters</button>
@@ -96,18 +119,38 @@
 
       workTypes.forEach((t,i) => colorMap[t] = COLORS[i % COLORS.length]);
 
+      // Inject Filter UI
       document.querySelector('main').insertAdjacentHTML('beforeend', `
         <section id="filters">
-          <div><h3>🔍 Search Projects</h3><input type="text" id="searchBox" placeholder="Job name, city, address..."></div>
+          <div>
+            <h3>🔍 Search Projects</h3>
+            <input type="text" id="searchBox" placeholder="Job name, city, address...">
+            
+            <div style="margin-top:20px; padding:15px; background:#ebf8ff; border-radius:12px; border:1px solid #bee3f8;">
+               <label style="display:flex; align-items:center; cursor:pointer; font-weight:bold; color:#2b6cb0;">
+                 <input type="checkbox" id="activeStagesOnly" checked style="width:20px; height:20px; margin-right:10px;">
+                 Show Key Project Stages Only
+               </label>
+               <small style="display:block; margin-left:30px; color:#4a5568; margin-top:5px;">
+                 Includes: 3.3, 3.4, 3.5, and 4.3
+               </small>
+            </div>
+          </div>
+
           <div><h3>Work Type</h3><select id="workTypeSelect" multiple></select></div>
           <div><h3>Deal Stage</h3><select id="dealStageSelect" multiple></select></div>
-          <div style="text-align:center"><button id="reset" class="btn" style="background:#666;color:white">Reset All</button><div id="count"></div></div>
+
+          <div style="text-align:center">
+            <button id="reset" class="btn" style="background:#666;color:white">Reset All</button>
+            <div id="count"></div>
+          </div>
+
           <div id="legend" class="legend"><strong>Legend (Work Type):</strong></div>
         </section>`);
 
+      // Initialize TomSelect for Work Type
       tomWorkType = new TomSelect('#workTypeSelect', {
         plugins: ['remove_button','dropdown_input'],
-        create: false,
         placeholder: "All Work Types",
         options: workTypes.map(t => ({value: t, text: t})),
         render: {
@@ -116,9 +159,9 @@
         }
       });
 
+      // Initialize TomSelect for Deal Stage
       tomDealStage = new TomSelect('#dealStageSelect', {
         plugins: ['remove_button','dropdown_input'],
-        create: false,
         placeholder: "All Deal Stages",
         options: dealStages.map(s => ({value: s, text: s})),
         render: {
@@ -126,6 +169,7 @@
         }
       });
 
+      // Build Legend
       const legend = document.getElementById('legend');
       Object.entries(colorMap).forEach(([t,c]) => {
         const el = document.createElement('div');
@@ -136,40 +180,53 @@
       });
 
       document.getElementById('loading').remove();
-      document.getElementById('count').textContent = `${projects.length} projects loaded`;
       plot();
 
-      const live = () => setTimeout(plot, 300);
-      document.getElementById('searchBox').addEventListener('input', live);
+      // Event Listeners
+      const livePlot = () => setTimeout(plot, 100);
+      document.getElementById('searchBox').addEventListener('input', livePlot);
+      document.getElementById('activeStagesOnly').addEventListener('change', plot);
       tomWorkType.on('change', plot);
       tomDealStage.on('change', plot);
 
       document.getElementById('reset').onclick = () => {
         document.getElementById('searchBox').value = '';
+        document.getElementById('activeStagesOnly').checked = true;
         tomWorkType.clear();
         tomDealStage.clear();
         plot();
       };
+
       document.getElementById('near').onclick = () => map.locate({setView:true, maxZoom:12});
       document.getElementById('toggle').onclick = () => document.getElementById('filters').classList.toggle('collapsed');
       document.getElementById('dark').onclick = () => document.body.classList.toggle('dark');
     }
 
+    // --- Filter and Plot Logic ---
     function plot() {
       cluster.clearLayers();
       const bounds = L.latLngBounds();
       let count = 0;
+
       const q = (document.getElementById('searchBox').value || '').toLowerCase();
       const selWork = tomWorkType ? tomWorkType.items : [];
       const selStage = tomDealStage ? tomDealStage.items : [];
+      const activeStagesOnly = document.getElementById('activeStagesOnly').checked;
 
       for (const p of projects) {
+        // 1. Checkbox Filter (Active Stages Only)
+        if (activeStagesOnly && !TARGET_STAGES.includes(p['Deal Stage'])) continue;
+
+        // 2. Dropdown Filters
         if (selWork.length && !selWork.includes(p['Work Type'])) continue;
         if (selStage.length && !selStage.includes(p['Deal Stage'])) continue;
+
+        // 3. Global Search Filter
         if (q && !Object.values(p).join(' ').toLowerCase().includes(q)) continue;
+
         const lat = parseFloat(p.Latitude || p.latitude);
         const lon = parseFloat(p.Longitude || p.longitude);
-        if (!lat || !lon) continue;
+        if (isNaN(lat) || isNaN(lon)) continue;
 
         const icon = L.icon({
           iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${colorMap[p['Work Type']] || 'grey'}.png`,
@@ -177,32 +234,33 @@
           iconSize: [25,41], iconAnchor: [12,41], popupAnchor: [1,-34], shadowSize: [41,41]
         });
 
-        // FIXED: Use your exact column headers "Year" and "Job Number"
+        // Job Number Formatting
         const year = (p['Year'] || '').trim();
         const jobNum = (p['Job Number'] || '').trim();
         const projectNumber = year && jobNum ? `${year}-${jobNum.padStart(3, '0')}` : '—';
-
         const addr = [p['Street Address'], p.City, p.State, p['Zip Code']].filter(Boolean).join(', ');
 
         const m = L.marker([lat,lon], {icon});
         m.bindPopup(`
-          <div class="project-popup">
-            <strong style="font-size:1.4rem; color:#722f37;">${projectNumber}</strong><br>
-            <strong>${p['Job Name'] || 'Unnamed Project'}</strong><br>
-            ${addr}<br><br>
+          <div style="font-family: sans-serif; min-width: 200px;">
+            <strong style="font-size:1.3rem; color:#722f37;">${projectNumber}</strong><br>
+            <strong style="font-size:1.1rem;">${p['Job Name'] || 'Unnamed Project'}</strong><br>
+            <span style="color:#666;">${addr}</span><br><br>
             <b>Work Type:</b> ${p['Work Type'] || '—'}<br>
             <b>Deal Stage:</b> ${p['Deal Stage'] || '—'}
           </div>`);
+          
         cluster.addLayer(m);
         bounds.extend([lat,lon]);
         count++;
       }
+
       document.getElementById('count').textContent = count ? `${count} project${count>1?'s':''} shown` : 'No projects match';
-      if (count) map.fitBounds(bounds.pad(0.2));
+      if (count > 0) map.fitBounds(bounds.pad(0.2));
     }
 
+    // Run Init on window load
     window.addEventListener('load', () => setTimeout(init, 100));
   </script>
 </body>
 </html>
-
