@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DRS Projects Map - Manual Column Map</title>
+  <title>DRS Projects Map - Value Only</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
@@ -24,7 +24,7 @@
     #filters.collapsed { display: none; }
     #filters h3 { margin:0 0 12px; color:var(--primary); font-size:1.5rem; }
     #searchBox { padding:14px 16px; border:1px solid var(--border); border-radius:12px; font-size:1.1rem; width:100%; box-sizing:border-box; }
-    .ts-control { padding:14px 16px !important; border:1px solid var(--border) !important; border-radius:12px !important; }
+    .ts-control { padding:14px 16px !important; border-radius:12px !important; }
     #count { text-align:center; font-weight:600; font-size:1.2rem; color:var(--primary); margin-top: 10px; }
     .legend { grid-column:1/-1; display:flex; flex-wrap:wrap; gap:16px; justify-content:center; padding-top:12px; border-top:1px solid var(--border); }
     .legend-item { display:flex; align-items:center; gap:10px; cursor:pointer; padding:6px 12px; border-radius:8px; }
@@ -35,7 +35,7 @@
 
   <main>
     <div id="map">
-      <div id="loading"><div class="spinner"></div><div>Connecting to Google Sheets...</div></div>
+      <div id="loading"><div class="spinner"></div><div>Accessing Project Database...</div></div>
     </div>
   </main>
 
@@ -44,7 +44,6 @@
   <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 
   <script>
-    // --- 1. CONFIGURATION ---
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTB_eYjbWk8gM-dAyY2gNFiJ4k60S3DRpF0AyMIe-8J2FyqiquIyraVjv9yHZ4tuMywAjkqRHV9V5BD/pub?output=csv";
     const TARGET_STAGES = ["4.3 - Closed - Project", "3.3 - Submitted", "3.4 - Permitted", "3.5 - In Construction"];
     const COLORS = ['red', 'blue', 'green', 'orange', 'yellow', 'violet', 'grey', 'black'];
@@ -52,7 +51,6 @@
     let map, cluster, projects = [], tomWorkType, tomDealStage;
     const colorMap = {};
 
-    // --- 2. DATA HANDLING ---
     function parseCSV(text) {
       const rows = text.split(/\r?\n/).filter(r => r.trim());
       const rawData = rows.map(row => {
@@ -67,18 +65,16 @@
         return result;
       });
 
-      // --- MANUAL COLUMN MAPPING ---
-      // If your columns move, just change these numbers (0 = A, 1 = B, etc.)
       return rawData.slice(1).map(row => {
         return {
-          jobname: row[1],           // Column B
-          worktype: row[2],          // Column C
-          dealstage: row[4],         // Column E
-          latitude: row[8],          // Column I
-          longitude: row[9],         // Column J
-          streetaddress: row[5],     // Column F
-          city: row[6],              // Column G
-          projectnumber: row[11]      // Column L (the one you wanted)
+          jobname: row[1],
+          worktype: row[2],
+          dealstage: row[4],
+          latitude: row[8],
+          longitude: row[9],
+          streetaddress: row[5],
+          city: row[6],
+          projectnumber: row[11] // Column L
         };
       });
     }
@@ -88,10 +84,9 @@
         const r = await fetch(CSV_URL);
         const text = await r.text();
         projects = parseCSV(text);
-      } catch (e) { console.error("Load failed", e); }
+      } catch (e) { console.error(e); }
     }
 
-    // --- 3. UI INITIALIZATION ---
     async function init() {
       map = L.map('map').setView([34.5, -119.5], 7);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
@@ -105,7 +100,7 @@
         <section id="filters">
           <div>
             <h3>🔍 Search</h3>
-            <input type="text" id="searchBox" placeholder="Search by name, #, or city...">
+            <input type="text" id="searchBox" placeholder="Search projects...">
             <div style="margin-top:15px; padding:10px; background:#eef; border-radius:8px;">
                <label><input type="checkbox" id="activeStagesOnly" checked> Show Key Stages Only</label>
             </div>
@@ -143,7 +138,6 @@
       plot();
     }
 
-    // --- 4. PLOTTING ---
     function plot() {
       cluster.clearLayers();
       const bounds = L.latLngBounds();
@@ -168,14 +162,14 @@
           iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
         });
 
-        // Use Column L (projectnumber) for the bold ID
-        const displayID = p.projectnumber || "N/A";
+        // This variable now holds only the column L value (no prefix text)
+        const projectVal = p.projectnumber || "N/A";
 
         const popup = `
           <div style="font-family: sans-serif; min-width: 180px;">
-            <div style="font-size: 1.2rem; color: #722f37;"><strong>Project #: ${displayID}</strong></div>
-            <div style="font-size: 1.0rem; margin-bottom: 8px;"><strong>${p.jobname}</strong></div>
-            <div style="border-top: 1px dotted #ccc; padding-top: 8px; font-size: 0.9rem;">
+            <div style="font-size: 1.25rem; color: #722f37; margin-bottom: 2px;"><strong>${projectVal}</strong></div>
+            <div style="font-size: 1.0rem; margin-bottom: 10px;"><strong>${p.jobname}</strong></div>
+            <div style="border-top: 1px solid #eee; padding-top: 8px; font-size: 0.9rem; line-height: 1.4;">
               ${p.streetaddress || ''}, ${p.city || ''}<br><br>
               <b>Type:</b> ${p.worktype}<br>
               <b>Stage:</b> ${p.dealstage}
@@ -184,8 +178,8 @@
 
         const m = L.marker([lat, lon], {icon}).bindPopup(popup);
         
-        // Add hover tooltip for immediate ID view
-        m.bindTooltip(`<strong>#${displayID}</strong>`, { direction: 'top', offset: [0, -35] });
+        // Tooltip (hover) also updated to show value only
+        m.bindTooltip(`<strong>${projectVal}</strong>`, { direction: 'top', offset: [0, -35] });
 
         cluster.addLayer(m);
         bounds.extend([lat, lon]);
