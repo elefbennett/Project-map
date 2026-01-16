@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DRS Projects Map - Precision ID Mapping</title>
+  <title>DRS Projects Map - Final Address Details</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
@@ -35,7 +35,7 @@
 
   <main>
     <div id="map">
-      <div id="loading"><div class="spinner"></div><div>Loading Map Content...</div></div>
+      <div id="loading"><div class="spinner"></div><div>Finalizing Map Details...</div></div>
     </div>
   </main>
 
@@ -65,19 +65,19 @@
         return result;
       });
 
-      // Based on your Column List starting at A:
-      // A: Year(0), B: JobNumber(1), C: JobName(2), D: WorkType(3), E: DealStage(4), F: StreetAddress(5), 
-      // G: City(6), H: State(7), I: ZipCode(8), J: Lat(9), K: Lon(10), L: FullJobID(11)
+      // Mapping based on: Year(0), Job#(1), JobName(2), WorkType(3), DealStage(4), Street(5), City(6), State(7), Zip(8), Lat(9), Lon(10), ID(11)
       return rawData.slice(1).map(row => {
         return {
-          jobname: row[2],          // Col C
-          worktype: row[3],         // Col D
-          dealstage: row[4],        // Col E
-          streetaddress: row[5],    // Col F
-          city: row[6],             // Col G
-          latitude: row[9],         // Col J
-          longitude: row[10],       // Col K
-          fulljobid: row[11]        // Col L
+          jobname: row[2],
+          worktype: row[3],
+          dealstage: row[4],
+          street: row[5],
+          city: row[6],
+          state: row[7],
+          zip: row[8],
+          latitude: row[9],
+          longitude: row[10],
+          fulljobid: row[11]
         };
       });
     }
@@ -87,7 +87,7 @@
         const r = await fetch(CSV_URL);
         const text = await r.text();
         projects = parseCSV(text);
-      } catch (e) { console.error("Error fetching data", e); }
+      } catch (e) { console.error("CSV loading failed", e); }
     }
 
     async function init() {
@@ -103,9 +103,9 @@
         <section id="filters">
           <div>
             <h3>🔍 Search</h3>
-            <input type="text" id="searchBox" placeholder="Search by Job ID or name...">
+            <input type="text" id="searchBox" placeholder="Search by ID, Name, or City...">
             <div style="margin-top:15px; padding:10px; background:#eef; border-radius:8px;">
-               <label><input type="checkbox" id="activeStagesOnly" checked> Show Completed Projects Only</label>
+               <label><input type="checkbox" id="activeStagesOnly" checked> Show Key Stages Only</label>
             </div>
           </div>
           <div><h3>Work Type</h3><select id="workTypeSelect" multiple></select></div>
@@ -167,21 +167,21 @@
         });
 
         const idValue = p.fulljobid || "N/A";
+        const cityStateZip = [p.city, p.state].filter(Boolean).join(', ') + (p.zip ? ` ${p.zip}` : '');
 
         const popup = `
           <div style="font-family: sans-serif; min-width: 180px;">
             <div style="font-size: 1.3rem; color: #722f37; margin-bottom: 2px;"><strong>${idValue}</strong></div>
             <div style="font-size: 1.0rem; margin-bottom: 10px;"><strong>${p.jobname}</strong></div>
             <div style="border-top: 1px solid #eee; padding-top: 8px; font-size: 0.9rem; line-height:1.4;">
-              ${p.streetaddress || ''}, ${p.city || ''}<br><br>
+              ${p.street || ''}<br>
+              ${cityStateZip}<br><br>
               <b>Type:</b> ${p.worktype}<br>
               <b>Stage:</b> ${p.dealstage}
             </div>
           </div>`;
 
         const m = L.marker([lat, lon], {icon}).bindPopup(popup);
-        
-        // Tooltip showing ONLY the Job ID value on hover
         m.bindTooltip(`<strong>${idValue}</strong>`, { direction: 'top', offset: [0, -35] });
 
         cluster.addLayer(m);
@@ -189,7 +189,7 @@
         count++;
       });
 
-      document.getElementById('count').textContent = `${count} Projects Found`;
+      document.getElementById('count').textContent = `${count} Projects Displayed`;
       if (count > 0) map.fitBounds(bounds.pad(0.1));
     }
 
@@ -197,4 +197,3 @@
   </script>
 </body>
 </html>
-
