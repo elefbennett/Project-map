@@ -61,7 +61,7 @@ function buildFiltersUI({ workTypes }) {
       <div class="filter-group" style="margin-bottom: 15px; padding: 12px; background: #ebf8ff; border-radius: 8px; border: 1px solid #bee3f8;">
         <label style="display: flex; align-items: center; cursor: pointer; font-weight: bold; color: #2b6cb0;">
           <input type="checkbox" id="stageFilterToggle" checked style="width: 20px; height: 20px; margin-right: 10px;">
-          Show Key Stages Only
+          Show Completed Projects Only
         </label>
         <div style="margin-left: 30px; font-size: 0.85em; color: #4a5568; line-height: 1.4;">
           <em>Filters for: 3.3, 3.4, 3.5, & 4.3</em>
@@ -183,3 +183,4 @@ function plotFiltered() {
 }
 
 document.addEventListener('DOMContentLoaded', initProjectsMap);
+
