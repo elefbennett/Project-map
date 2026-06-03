@@ -65,19 +65,27 @@
         return result;
       });
 
-      // Mapping based on: Year(0), Job#(1), JobName(2), WorkType(3), DealStage(4), Street(5), City(6), State(7), Zip(8), Lat(9), Lon(10), ID(11)
+      const headers = rawData[0].map(h => (h || '').trim().toLowerCase());
+      const value = (row, headerName, fallbackIndex) => {
+        const idx = headers.indexOf(headerName.toLowerCase());
+        return row[idx >= 0 ? idx : fallbackIndex] || '';
+      };
+
       return rawData.slice(1).map(row => {
+        const year = value(row, 'Year', 0);
+        const jobNumber = value(row, 'Job Number', 1);
+        const fullJobId = value(row, 'Full Job ID', -1) || (year && jobNumber ? `${year}-${jobNumber}` : '');
         return {
-          jobname: row[2],
-          worktype: row[3],
-          dealstage: row[4],
-          street: row[5],
-          city: row[6],
-          state: row[7],
-          zip: row[8],
-          latitude: row[9],
-          longitude: row[10],
-          fulljobid: row[11]
+          jobname: value(row, 'Job Name', 2),
+          worktype: value(row, 'Work Type', 3),
+          dealstage: value(row, 'Deal Stage', 4),
+          street: value(row, 'Street Address', 5),
+          city: value(row, 'City', 6),
+          state: value(row, 'State', 7),
+          zip: value(row, 'Zip Code', 8),
+          latitude: value(row, 'Latitude', 9),
+          longitude: value(row, 'Longitude', 10),
+          fulljobid: fullJobId
         };
       });
     }
